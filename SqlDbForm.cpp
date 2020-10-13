@@ -46,7 +46,7 @@ void SqlDbForm::SetDatabase(DbInterface *dbLoader)
    qDebug(*log(LOG, 1)) << __FUNCTION__ << ": xlated table name: " << m_table;
    QString sql = "select * from " + m_table;
    qDebug(*log(LOG, 1)) << __FUNCTION__ << ": sql = " << sql;
-   QSqlQuery q1(m_dbInterface->Database());
+   QSqlQuery q1(m_dbInterface->database());
    q1.prepare(sql);
    q1.exec();
    q1.next();
@@ -78,7 +78,7 @@ void SqlDbForm::SetDatabase(DbInterface *dbLoader)
             QString fname = field.toString();
             QStringList sl = fname.split("@");
             QString rawName = sl[0];
-            fname = m_dbInterface->GetIdName(rawName);
+            fname = m_dbInterface->GetIndexName(rawName);
             if ( field.isValid() && tableRecord.indexOf(fname) >= 0 ) 
             {
                qDebug(*log(LOG, 1)) << __FUNCTION__ << ": fname: " << fname;
@@ -156,9 +156,8 @@ void SqlDbForm::setQueryStatement(QString whereClause)
    {
       sql += " " + m_order;
    }
-   sql = m_dbInterface->AdjustSqlNames(sql);
 
-   m_model->setQuery(sql, m_dbInterface->Database());
+   m_model->setQuery(sql, m_dbInterface->database());
 
    /***********************************************/
    /*   If we have not already mapped the widgets */
@@ -183,9 +182,8 @@ void SqlDbForm::setQueryStatement(QString whereClause)
             QComboBox *wdt = dynamic_cast<QComboBox*>(it.value());
             wdt->clear();
             QString sql = m_relations.value(it.key());
-            sql = m_dbInterface->AdjustSqlNames(sql);
             qDebug(*log(LOG, 1)) << __FUNCTION__ << "sql = " << sql;
-            QSqlQuery q1(m_dbInterface->Database());
+            QSqlQuery q1(m_dbInterface->database());
             q1.prepare(sql);
             q1.exec();
             while (q1.next())
@@ -223,28 +221,28 @@ void SqlDbForm::setCurrentModelIndex(QModelIndex index)
          {
             if ( ! static_cast<QLineEdit*>(wdt)->isReadOnly() )
             {
-               static_cast<QLineEdit*>(wdt)->setReadOnly(! m_dbInterface->IsAdvancedUser());
+               static_cast<QLineEdit*>(wdt)->setReadOnly(false);
             }
          }
          else if ( wdt->inherits("QTextEdit")  ) 
          {
             if ( ! static_cast<QTextEdit*>(wdt)->isReadOnly() )
             {
-               static_cast<QTextEdit*>(wdt)->setReadOnly(! m_dbInterface->IsAdvancedUser());
+               static_cast<QTextEdit*>(wdt)->setReadOnly(false);
             }
          }
          else if ( wdt->inherits("QDoubleSpinBox")  ) 
          {
             if ( ! static_cast<QDoubleSpinBox*>(wdt)->isReadOnly() )
             {
-               static_cast<QDoubleSpinBox*>(wdt)->setReadOnly(! m_dbInterface->IsAdvancedUser());
+               static_cast<QDoubleSpinBox*>(wdt)->setReadOnly(false);
             }
          }
          else if ( wdt->inherits("QSpinBox")  ) 
          {
             if ( ! static_cast<QSpinBox*>(wdt)->isReadOnly() )
             {
-               static_cast<QSpinBox*>(wdt)->setReadOnly(! m_dbInterface->IsAdvancedUser());
+               static_cast<QSpinBox*>(wdt)->setReadOnly(false);
             }
          }
          else if ( wdt->inherits("QComboBox")  ) 
@@ -252,7 +250,7 @@ void SqlDbForm::setCurrentModelIndex(QModelIndex index)
             if ( static_cast<QComboBox*>(wdt)->isEnabled() )
             {
                qDebug(*log(LOG, 1)) << __FUNCTION__ << "Disabling combobox";
-               static_cast<QComboBox*>(wdt)->setEnabled(m_dbInterface->IsAdvancedUser());
+               static_cast<QComboBox*>(wdt)->setEnabled(true);
             }
          }
       }
@@ -303,7 +301,7 @@ QString SqlDbForm::GetFormValue(QString field_name)
 
 QSqlQuery SqlDbForm::BuildUpdateQuery(QString where)
 {
-   QSqlQuery rv(m_dbInterface->Database());
+   QSqlQuery rv(m_dbInterface->database());
    
    QString bind_name;
    QString field_list;
@@ -324,7 +322,6 @@ QSqlQuery SqlDbForm::BuildUpdateQuery(QString where)
    }
    sql += field_list + " " + where;
    qDebug(*log(LOG, 1)) << __FUNCTION__ << "sql = " << sql;
-   sql = m_dbInterface->AdjustSqlNames(sql);
    qDebug(*log(LOG, 1)) << __FUNCTION__ << "sql = " << sql;
    rv.prepare(sql);
 
@@ -333,7 +330,7 @@ QSqlQuery SqlDbForm::BuildUpdateQuery(QString where)
       if ( ! field.startsWith("sys_") ) 
       {
          QString value;
-         value = GetFormValue(m_dbInterface->GetIdName(field));
+         value = GetFormValue(m_dbInterface->GetIndexName(field));
          bind_name = field;
          if ( field.endsWith("_id") ) 
          {
@@ -349,7 +346,7 @@ QSqlQuery SqlDbForm::BuildUpdateQuery(QString where)
 
 QSqlQuery SqlDbForm::BuildInsertQuery()
 {
-   QSqlQuery rv(m_dbInterface->Database());
+   QSqlQuery rv(m_dbInterface->database());
    
    QString bind_name;
    QString field_list;
@@ -396,14 +393,13 @@ QSqlQuery SqlDbForm::BuildInsertQuery()
    
    sql += field_list + ") values (" + value_list + ")";
    qDebug(*log(LOG, 1)) << __FUNCTION__ << "sql = " << sql;
-   sql = m_dbInterface->AdjustSqlNames(sql);
    qDebug(*log(LOG, 1)) << __FUNCTION__ << "sql = " << sql;
    rv.prepare(sql);
 
    foreach(QString field, m_rawFieldNames)
    {
       QString value;
-      value = GetFormValue(m_dbInterface->GetIdName(field));
+      value = GetFormValue(m_dbInterface->GetIndexName(field));
       bind_name = field;
       if ( field.endsWith("_id") ) 
       {

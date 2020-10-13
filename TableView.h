@@ -26,8 +26,8 @@ namespace QcjLib
 
    public:
       TableView(QWidget * parent = 0) :
-         m_debug(false),
-         QTableView(parent)
+         QTableView(parent),
+         m_debug(false)
       {
          connect(horizontalHeader(), SIGNAL(sectionClicked(int)), 
                  this, SLOT(SlotSectionClicked(int)));

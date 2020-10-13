@@ -25,12 +25,11 @@ namespace QcjLib
          QString     Statement;
       };
 
-      virtual QVariant GetLastInsertId(QString table_name) = 0;
-      virtual QString GetTableName(QString name) = 0;
-      virtual QString GetIdName(QString name) = 0;
-      virtual QString AdjustSqlNames(QString sql) = 0;
-      virtual QSqlDatabase Database() = 0;
-      virtual bool IsAdvancedUser() = 0;
+      virtual QVariant GetLastInsertId(const QString table_name) = 0;
+      virtual QString GetTableName(const QString name) = 0;
+      virtual QString GetIndexName(const QString name) = 0;
+      virtual QSqlDatabase database() = 0;
+      virtual QSqlQuery NewQuery() = 0;
    };
 };
 

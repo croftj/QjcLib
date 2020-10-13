@@ -8,6 +8,7 @@
 # include "LogLevelWidget.h"
 
 # include "ui_logdialog.h"
+#include <iostream>
 
 namespace QcjLib
 {
@@ -29,7 +30,8 @@ namespace QcjLib
          m_ui.consoleCheckBox->setChecked(settings.value(LOG_CONSOLE_ENABLE, true).toBool());
          m_ui.viewCheckBox->setChecked(settings.value(LOG_VIEW_ENABLE, true).toBool());
          m_ui.fileCheckBox->setChecked(settings.value(LOG_FILE_ENABLE, true).toBool());
-         m_ui.fileNameEdit->setText(settings.value(LOG_FILE_NAME, "./wilmaadmin.log").toString());
+         m_ui.fileNameEdit->setText(settings.value(LOG_FILE_NAME, "./app.log").toString());
+         std::cout << "here" << std::endl;
       }
 
       static bool isViewEnabled()
