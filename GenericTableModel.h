@@ -3,6 +3,7 @@
 
 # include "LogBuilder.h"
 
+#include <QMutex>
 # include <QStandardItemModel>
 
 namespace QcjLib
@@ -32,8 +33,9 @@ namespace QcjLib
 
       static const QString LOG;
 
-   private:
    protected:
+   private:
+      mutable QMutex m_lock;
    };
 };
 
