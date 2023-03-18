@@ -52,6 +52,7 @@ namespace QcjLib
          QTableView(parent),
          m_debug(false)
       {
+         setTabKeyNavigation(false);
          connect(horizontalHeader(), SIGNAL(sectionClicked(int)), 
                  this, SLOT(SlotSectionClicked(int)));
          setSortingEnabled(true);
