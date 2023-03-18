@@ -259,7 +259,7 @@ namespace QcjLib
       void SetLogLevel(QString log_name, unsigned int level = 1)
       {
          QString msg_type;
-         if ( m_logLevels.contains(log_name) ) 
+         if ( true ||  m_logLevels.contains(log_name) ) 
          {
             m_logLevels.insert(log_name, level);
          }

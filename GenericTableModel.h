@@ -36,29 +36,46 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericTableModel(QObject *parent = NULL) : QStandardItemModel(parent) {};
+      GenericTableModel(QObject *parent = NULL);
+
+      GenericTableModel(const QcjLib::GenericTableModel& other) : 
+         QStandardItemModel(nullptr)
+      {
+         qDebug() << "Enter...";
+         for (int row = 0; row < other.rowCount(); row++)
+         {
+            for (int col = 0; col < other.columnCount(); col++)
+            {
+               const QString val(other.Value(row, col));
+               SetValue(row, col, val);
+//               QVariant header_val;
+//               header_val = other.headerData(col, Qt::Horizontal);
+//               setHeaderData(col, Qt::Horizontal, header_val);
+            }
+         }
+      };
       
       typedef QMap<QString, QString> ModelRow_t;
 
-      QStringList Headers();
+      QStringList Headers() const;
 
-      int         FindColumn(QString col_name);
-      int         FindRow(QString col_name, QString value);
-      int         FindRow(int col, QString value);
+      int         FindColumn(QString col_name) const;
+      int         FindRow(QString col_name, QString value) const;
+      int         FindRow(int col, QString value) const;
       int         AddColumn(QString col_name);
       int         AddColumn(int row, QString col_name, QString text);
       bool        RemoveColumn(QString col_name);
       void        SetValue(int row, QString col_name, QString text);
       void        SetValue(int row, int col, QString text);
-      ModelRow_t  GetRow(int row);
-      QString     Value(int row, QString col_name);
-      QString     Value(int row, int col);
-
+      ModelRow_t  GetRow(int row) const;
+      QString     Value(int row, QString col_name) const;
+      QString     Value(int row, int col) const;
+      int         appendBlankRow();
       static const QString LOG;
 
    protected:
    private:
-      mutable QMutex m_lock;
+      mutable QMutex *m_lock;
    };
 };
 

@@ -90,6 +90,7 @@ namespace QcjLib
 
       void LogMessage(QString msg)
       {
+//         std::cout << __FUNCTION__ <<  "m_consoleEnable: " << m_consoleEnable << std::endl;
          if ( m_consoleEnable ) 
          {
             m_consoleStream << msg;

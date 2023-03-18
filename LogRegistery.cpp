@@ -70,7 +70,7 @@ void LogRegistery::RegisterLog(QString log_name, unsigned int levels, QString de
 //   m_logLevels.insert(log_name, levels);
    if ( ! m_logLevels.contains(log_name) ) 
    {
-      m_logLevels.insert(log_name, 0);
+      m_logLevels.insert(log_name, 1);
    }
 
    m_logDescriptions.insert(log_name, description);

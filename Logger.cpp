@@ -48,11 +48,11 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
    {
       level = sl[1].toInt();
    }
-//   std::cout << __FUNCTION__ <<  " context->category: " << context.category << ", level: " << level << std::endl;
+//   std::cout << __FUNCTION__ <<  " context->category: " << qPrintable(category) << ", level: " << level << ", logging level: " << QcjLib::LogRegistery::instance()->LogLevel(category) << std::endl;
 
    if ( QcjLib::LogRegistery::instance()->LogLevel(category) >= level ) 
    {
-      buf << category << "-" << level << "::";
+      buf << category << ":" << level << "::" ;
       switch (type)
       {
          case QtDebugMsg:
@@ -72,7 +72,7 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
             QcjLib::Logger::instance()->LogMessage(msg_buf);
             abort();
       }
-      buf << msg << endl;
+      buf << context.function << ": " << msg << endl;
       QcjLib::Logger::instance()->LogMessage(msg_buf);
    }
 }
