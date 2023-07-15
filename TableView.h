@@ -26,12 +26,13 @@
 
 #include "LogBuilder.h"
 
-# include <QDebug>
-# include <QHeaderView>
-# include <QSqlTableModel>
-# include <QTableView>
-# include <QModelIndex>
-# include <QWidget>
+#include <QDebug>
+#include <QHeaderView>
+#include <QKeyEvent>
+#include <QSqlTableModel>
+#include <QTableView>
+#include <QModelIndex>
+#include <QWidget>
 
 namespace QcjLib
 {
@@ -46,11 +47,13 @@ namespace QcjLib
    class TableView : public QTableView 
    {
       Q_OBJECT
+      Q_PROPERTY (QString xml_definition READ readXmlDef WRITE writeXmlDef)
 
    public:
       TableView(QWidget * parent = 0) :
          QTableView(parent),
-         m_debug(false)
+         m_debug(false),
+         m_haveDelegates(false)
       {
          setTabKeyNavigation(false);
          connect(horizontalHeader(), SIGNAL(sectionClicked(int)), 
@@ -58,6 +61,10 @@ namespace QcjLib
          setSortingEnabled(true);
          m_sortColumn = -1;
       }
+      
+      void writeXmlDef(QString s) { m_xmldef = s; };
+      QString readXmlDef() const { return(m_xmldef); };
+      void setFields(int row = 0);
 
       void SetDebug(bool debug)
       {
@@ -96,6 +103,9 @@ namespace QcjLib
          qDebug(*log(LOG, 1)) << "TableView::currentChanged(): Exit";
       };
 
+      virtual bool event(QEvent *evt);
+      virtual void keyPressEvent(QKeyEvent *evt);
+
    protected slots:
       void SlotSectionClicked(int logicalSection)
       {
@@ -105,8 +115,10 @@ namespace QcjLib
 
    private:
       bool           m_debug;
+      bool           m_haveDelegates;
       int            m_sortColumn;
       Qt::SortOrder  m_sortOrder;
+      QString        m_xmldef;
    };
 }
 
