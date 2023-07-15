@@ -62,14 +62,17 @@ namespace QcjLib
       int         FindColumn(QString col_name) const;
       int         FindRow(QString col_name, QString value) const;
       int         FindRow(int col, QString value) const;
-      int         AddColumn(QString col_name);
-      int         AddColumn(int row, QString col_name, QString text);
+      int         AddColumn(QString col_name, QString data_name = QString());
+      int         AddColumn(int row, QString col_name, QString text, QString data_name = QString());
       bool        RemoveColumn(QString col_name);
       void        SetValue(int row, QString col_name, QString text);
       void        SetValue(int row, int col, QString text);
       ModelRow_t  GetRow(int row) const;
       QString     Value(int row, QString col_name) const;
       QString     Value(int row, int col) const;
+      QString     ColumnName(int col) const;
+      QString     ColumnDataName(int col) const;
+      QString     ColumnDataName(QString &name) const;
       int         appendBlankRow();
       static const QString LOG;
 

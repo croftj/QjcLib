@@ -23,6 +23,7 @@
 /******************************************************************************/
 #include "GenericTableModel.h"
 #include <QMutexLocker>
+#include <QStandardItem>
 
 using namespace QcjLib;
 
@@ -113,7 +114,7 @@ GenericTableModel::ModelRow_t GenericTableModel::GetRow(int row) const
    return(rv);
 }
 
-int GenericTableModel::AddColumn(QString col_name)
+int GenericTableModel::AddColumn(QString col_name, QString data_name)
 {
    qDebug(*log(LOG, 1)) << "Enter";
    QMutexLocker locker(m_lock);
@@ -127,17 +128,19 @@ int GenericTableModel::AddColumn(QString col_name)
       setColumnCount(rv + 1);
    }
    qDebug(*log(LOG, 1))  << "Adding column named " << col_name << " to column " << rv;
-   setHorizontalHeaderItem(rv, new QStandardItem(col_name));
+   QStandardItem *hdr_item = new QStandardItem(col_name);
+   hdr_item->setData(QVariant(data_name));
+   setHorizontalHeaderItem(rv, hdr_item);
    qDebug(*log(LOG, 1)) << "Exit";
    return(rv);
 }
 
-int GenericTableModel::AddColumn(int row, QString col_name, QString text)
+int GenericTableModel::AddColumn(int row, QString col_name, QString text, QString data_name)
 {
    qDebug(*log(LOG, 1)) << "Enter";
    QMutexLocker locker(m_lock);
    qDebug(*log(LOG, 1))  << "Adding column with data " << col_name;
-   int rv = AddColumn(col_name);
+   int rv = AddColumn(col_name, data_name);
    qDebug(*log(LOG, 1))  << "Adding to column " << rv << ", row " << row;
    SetValue(row, rv, text);
    qDebug(*log(LOG, 1)) << "Exit";
@@ -168,7 +171,11 @@ void GenericTableModel::SetValue(int row, int col, QString text)
    qDebug(*log(LOG, 1))  << "2 Enter row = " << row << ", col = " << col << ", text = " << text;
 //   QMutexLocker locker(m_lock);
    qDebug(*log(LOG, 1))  << "have lock";
-   setItem(row, col, new QStandardItem(text));
+   QStandardItem *item = new QStandardItem(text);
+   Qt::Alignment align = static_cast<Qt::Alignment>(data(index(row, col), Qt::TextAlignmentRole).toInt());
+   qDebug(*log(LOG, 1)) << "Alignment = " << align;
+   item->setTextAlignment(align);
+   setItem(row, col, item);
 }
 
 QString GenericTableModel::Value(int row, QString col_name) const
@@ -196,6 +203,29 @@ QString GenericTableModel::Value(int row, int col) const
       qDebug(*log(LOG, 1)) << "Exit";
       return(QString("empty"));
    }
+}
+
+QString GenericTableModel::ColumnName(int col) const
+{
+   QStandardItem *hdr_item = horizontalHeaderItem(col);
+   return(hdr_item->text());
+}
+
+QString GenericTableModel::ColumnDataName(int col) const
+{
+   QStandardItem *hdr_item = horizontalHeaderItem(col);
+   return(hdr_item->data().toString());
+}
+
+QString GenericTableModel::ColumnDataName(QString &col_name) const
+{
+   int col;
+   if ((col = FindColumn(col_name)) >= 0)
+   {
+      QStandardItem *hdr_item = horizontalHeaderItem(col);
+      return(hdr_item->data().toString());
+   }
+   return(QString());
 }
 
 int GenericTableModel::appendBlankRow()
