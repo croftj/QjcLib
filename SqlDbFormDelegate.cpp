@@ -68,5 +68,4 @@ void SqlDbFormDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
    {
       QItemDelegate::setModelData(editor, model, index);
    }
-   
 }
