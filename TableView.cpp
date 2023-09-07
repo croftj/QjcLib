@@ -116,14 +116,39 @@ void TableView::setFields(int row)
       }
       column++;
    }
+   setCurrentIndex(model_ptr->index(0, 0));
    m_haveDelegates = true;
    QEvent evt = QEvent(QEvent::Enter);
    TableView::event(&evt);
 }
 
+bool TableView::focusInEvent(QEvent *evt)
+{
+   if (true && evt->type() != QEvent::Timer)
+   {
+      qDebug() << __FUNCTION__ << "Have event: " << evt->type();
+   }
+   return(false);
+}
+
 bool TableView::event(QEvent *evt)
 {
-   if (false && evt->type() != QEvent::Timer)
+   if (true && evt->type() == QEvent::FocusIn)
+   {
+      qDebug() << __FUNCTION__ << "Have event: " << evt->type();
+      if ( currentIndex().isValid())
+      {
+         edit(currentIndex());
+      }
+      else
+      {
+         qDebug() << "model ptr = " << (long int)model();
+         if (model() != nullptr)
+            edit(model()->index(0, 0));
+      }
+
+   }
+   else if (true && evt->type() != QEvent::Timer)
    {
       qDebug() << __FUNCTION__ << "Have event: " << evt->type();
    }

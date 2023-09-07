@@ -202,10 +202,12 @@ GenericYesNoDelegate::GenericYesNoDelegate(QcjDataFields &fieldData, QObject *pa
    m_fieldData = fieldData;
 }
 
-QWidget *GenericYesNoDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const
+QWidget *GenericYesNoDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &index) const
 {
+   qDebug() << "Creating edit widget: value = " << index.model()->data(index, Qt::EditRole).toString();
    QcjYesNoSelect *templ = dynamic_cast<QcjYesNoSelect*>(m_fieldData.widget);
    QcjYesNoSelect *editor = new QcjYesNoSelect(parent);
+   editor->setText(index.model()->data(index, Qt::EditRole).toString());
    int itmCount = templ->count();
    editor->setEditable(templ->isEditable());
    connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()));

@@ -25,6 +25,7 @@
 #define GENERICTABLELMODEL_H
 
 # include "LogBuilder.h"
+# include "Types.h"
 
 #include <QMutex>
 # include <QStandardItemModel>
@@ -55,7 +56,7 @@ namespace QcjLib
          }
       };
       
-      typedef QMap<QString, QString> ModelRow_t;
+      typedef QHash<QString, QString> ModelRow_t;
 
       QStringList Headers() const;
 
@@ -68,17 +69,19 @@ namespace QcjLib
       void        SetValue(int row, QString col_name, QString text);
       void        SetValue(int row, int col, QString text);
       ModelRow_t  GetRow(int row) const;
+      VariantHash GetVariantRow(int row) const;
       QString     Value(int row, QString col_name) const;
       QString     Value(int row, int col) const;
       QString     ColumnName(int col) const;
       QString     ColumnDataName(int col) const;
       QString     ColumnDataName(QString &name) const;
       int         appendBlankRow();
+      void        appendRow(const QcjLib::VariantHash &data);
       static const QString LOG;
 
    protected:
    private:
-      mutable QMutex *m_lock;
+      mutable QRecursiveMutex m_lock;
    };
 };
 

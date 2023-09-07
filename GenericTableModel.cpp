@@ -22,6 +22,8 @@
 /* For more information, please refer to <http://unlicense.org/>              */
 /******************************************************************************/
 #include "GenericTableModel.h"
+#include "Types.h"
+#include <QMutexLocker>
 #include <QMutexLocker>
 #include <QStandardItem>
 
@@ -31,19 +33,25 @@ const QString GenericTableModel::LOG("QcjLib_gen_tbl_model");
 static LogBuilder mylog(GenericTableModel::LOG, 1, "QcjLib Generic Table Model");
 
 GenericTableModel::GenericTableModel(QObject *parent) :
-   QStandardItemModel(parent),
-   m_lock(new QMutex(QMutex::Recursive))
+   QStandardItemModel(parent)
 {};
 
 QStringList GenericTableModel::Headers() const
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    QStringList rv;
 
    for (int x = 0; x < columnCount(); x++) 
    {
-      rv << horizontalHeaderItem(x)->text();
+      if ( horizontalHeaderItem(x) != nullptr)
+      {
+         rv << horizontalHeaderItem(x)->text();
+      }
+      else
+      {
+         qDebug() << "bad header";
+      }
    }
    qDebug(*log(LOG, 1)) << "Exit";
    return(rv);
@@ -52,7 +60,7 @@ QStringList GenericTableModel::Headers() const
 int GenericTableModel::FindColumn(QString col_name) const
 {
    qDebug(*log(LOG, 1)) << "Enter- name: " << col_name;
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    int rv = -1;
    qDebug(*log(LOG, 1))  << "columnCount = " << columnCount();
    for (rv = 0; rv < columnCount(); rv++) 
@@ -71,7 +79,7 @@ int GenericTableModel::FindColumn(QString col_name) const
 int GenericTableModel::FindRow(QString col_name, QString value) const
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    int rv = -1;
    int col = FindColumn(col_name);
    if ( col >= 0 ) 
@@ -85,7 +93,7 @@ int GenericTableModel::FindRow(QString col_name, QString value) const
 int GenericTableModel::FindRow(int col, QString value) const
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    int rv = -1;
 
    for (int row = 0; rv < 0 && row < rowCount(); row++) 
@@ -99,10 +107,28 @@ int GenericTableModel::FindRow(int col, QString value) const
    return(rv);
 }
 
+VariantHash GenericTableModel::GetVariantRow(int row) const
+{
+   qDebug(*log(LOG, 1)) << "Enter";
+   QMutexLocker locker(&m_lock);
+   VariantHash rv;
+
+   QStringList fields = Headers();
+   qDebug() << "Fields: " << fields;
+   foreach (QString field, fields)
+   {
+      qDebug() << "Field: " << field;
+      qDebug() << "Value: " << Value(row, field);
+      rv.insert(field, QVariant(Value(row, field)));
+   }
+   qDebug(*log(LOG, 1)) << "Exit";
+   return(rv);
+}
+
 GenericTableModel::ModelRow_t GenericTableModel::GetRow(int row) const
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    ModelRow_t rv;
 
    QStringList fields = Headers();
@@ -117,7 +143,7 @@ GenericTableModel::ModelRow_t GenericTableModel::GetRow(int row) const
 int GenericTableModel::AddColumn(QString col_name, QString data_name)
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    QRegExp re(": *$");
    col_name = col_name.replace(re, "");
    int rv = FindColumn(col_name);
@@ -138,7 +164,7 @@ int GenericTableModel::AddColumn(QString col_name, QString data_name)
 int GenericTableModel::AddColumn(int row, QString col_name, QString text, QString data_name)
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    qDebug(*log(LOG, 1))  << "Adding column with data " << col_name;
    int rv = AddColumn(col_name, data_name);
    qDebug(*log(LOG, 1))  << "Adding to column " << rv << ", row " << row;
@@ -150,7 +176,7 @@ int GenericTableModel::AddColumn(int row, QString col_name, QString text, QStrin
 bool GenericTableModel::RemoveColumn(QString col_name)
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    int idx = FindColumn(col_name);
    qDebug(*log(LOG, 1))  << "Removing column " << col_name << ", column num: " << idx;
    qDebug(*log(LOG, 1)) << "Exit";
@@ -160,7 +186,7 @@ bool GenericTableModel::RemoveColumn(QString col_name)
 void GenericTableModel::SetValue(int row, QString col_name, QString text)
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    int col = FindColumn(col_name);
 //   qDebug(*log(LOG, 1))  << "1 Enter col_name = " << col_name << ", col = " << col << ", row = " << row;
    SetValue(row, col, text);
@@ -169,7 +195,7 @@ void GenericTableModel::SetValue(int row, QString col_name, QString text)
 void GenericTableModel::SetValue(int row, int col, QString text)
 {
    qDebug(*log(LOG, 1))  << "2 Enter row = " << row << ", col = " << col << ", text = " << text;
-//   QMutexLocker locker(m_lock);
+//   QMutexLocker locker(&m_lock);
    qDebug(*log(LOG, 1))  << "have lock";
    QStandardItem *item = new QStandardItem(text);
    Qt::Alignment align = static_cast<Qt::Alignment>(data(index(row, col), Qt::TextAlignmentRole).toInt());
@@ -181,7 +207,7 @@ void GenericTableModel::SetValue(int row, int col, QString text)
 QString GenericTableModel::Value(int row, QString col_name) const
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    int col = FindColumn(col_name);
    qDebug(*log(LOG, 1))  << "3 Enter row = " << row << ", col_name = " << col_name << ", col = " << col << ", rowCount() " << rowCount();
    qDebug(*log(LOG, 1)) << "Exit";
@@ -191,7 +217,7 @@ QString GenericTableModel::Value(int row, QString col_name) const
 QString GenericTableModel::Value(int row, int col) const
 {
    qDebug(*log(LOG, 1)) << "Enter";
-   QMutexLocker locker(m_lock);
+   QMutexLocker locker(&m_lock);
    QStandardItem *val_item = item(row, col);
    if ( val_item != NULL ) 
    {
@@ -236,4 +262,17 @@ int GenericTableModel::appendBlankRow()
       SetValue(rv, col, QString(""));
    }
    return(rv);
+}
+
+void GenericTableModel::appendRow(const QcjLib::VariantHash &data)
+{
+   QStringList tableFieldNames = Headers();
+   int row = rowCount();
+   foreach(QString fieldName, data.keys())
+   {
+      if (tableFieldNames.contains(fieldName))
+      {
+         SetValue(row, fieldName, data.value(fieldName).toString());
+      }
+   }
 }

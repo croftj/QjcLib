@@ -71,14 +71,19 @@ namespace WidgetUtils
    QWidget *findChildByFieldName(QWidget *form, QString field_name)
    {
       QWidget *rv = NULL;
-      foreach (QObject *wdt, form->children())
+
+      // Get a list of al of the children widgets
+      QList<QWidget*> widgets = form->findChildren<QWidget*>();
+      foreach (QWidget *wdt, widgets)
       {
          QVariant fn = wdt->property("field_name");
+         qDebug() << "child object: " << wdt->objectName()
+                  << ", fieldName: " << fn.toString();
          if (fn.isValid())
          {
             if (fn.toString() == field_name)
             {
-               rv = static_cast<QWidget*>(wdt);
+               rv = wdt;
                break;
             }
          }
@@ -118,6 +123,11 @@ namespace WidgetUtils
       {
          qDebug() << "double spin";
          static_cast<QDoubleSpinBox*>(wdt)->setValue(val.toDouble());
+      }
+      else if ( isA(wdt, "QcjPhotoEntry") ) 
+      {
+         qDebug() << "image";
+         static_cast<QcjPhotoEntry*>(wdt)->set(val.toByteArray());
       }
       else
       {

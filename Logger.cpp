@@ -36,7 +36,7 @@ QcjLib::Logger* QcjLib::Logger::m_instance = NULL;
 void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
    QString str(context.category);
-//   std::cout << __FUNCTION__ <<  " str: " << qPrintable(str) << std::endl;
+//   std::cout << __FUNCTION__ <<  " str: |" << qPrintable(str) << "|" << std::endl;
    QStringList sl = str.split(":");
    QString category = sl[0];
    unsigned int level = 1;

@@ -1,6 +1,7 @@
 #ifndef BUTTON_BOX_FRAME
 #define BUTTON_BOX_FRAME
 
+#include <QAbstractButton>
 #include <QFrame>
 #include <QString>
 #include <QStringList>
@@ -19,6 +20,7 @@ namespace QcjLib
       void setDatabase(const QString &item);
       QStringList checkedButtons();
       QStringList buttonList();
+      void checkButtons(const QStringList &names);
 
       void writeXmlDef(QString xmldef)
       {
@@ -30,7 +32,11 @@ namespace QcjLib
          return(m_xmldef);
       }
 
+   protected slots:
+      void focusNext();
+
    protected:
+      QAbstractButton *findButton(const QString &name);
       QString  m_xmldef;
    };
 }

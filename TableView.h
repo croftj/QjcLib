@@ -103,6 +103,7 @@ namespace QcjLib
          qDebug(*log(LOG, 1)) << "TableView::currentChanged(): Exit";
       };
 
+      virtual bool focusInEvent(QEvent *evt);
       virtual bool event(QEvent *evt);
       virtual void keyPressEvent(QKeyEvent *evt);
 

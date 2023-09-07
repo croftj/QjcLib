@@ -84,6 +84,29 @@ namespace QcjLib
       QcjDataFields  m_fieldData;
    };
 
+#if 0
+   class GenericImageDelegate : public QStyledItemDelegate
+   {
+      Q_OBJECT
+
+   public:
+      GenericImageDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+
+      virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+      virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
+      virtual void setModelData(QWidget *editor, QAbstractItemModel *model,
+                        const QModelIndex &index) const;
+      void setMinMaxIncrement(double minimum, double maximum, double increment);
+      static const QString LOG;
+
+   private slots:
+      void closeCommitEditor();
+
+   private:
+      QcjDataFields  m_fieldData;
+   };
+#endif
+
    class GenericMoneyDelegate : public QStyledItemDelegate
    {
       Q_OBJECT

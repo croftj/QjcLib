@@ -1,8 +1,11 @@
 #include "QcjLib/ButtonBoxFrame.h"
+#include "QcjLib/LinkedCheckBox.h"
 #include "QcjData/QcjDataLogin.h"
 #include "QcjData/QcjDataStatics.h"
 #include "QcjData/QcjDataXML.h"
 
+#include <QAction>
+#include <QActionEvent>
 #include <QCheckBox>
 #include <QDebug>
 #include <QGridLayout>
@@ -23,7 +26,7 @@ QcjLib::ButtonBoxFrame::ButtonBoxFrame(QWidget *parent) : QFrame(parent)
 
 void QcjLib::ButtonBoxFrame::setDatabase(const QString &item)
 {
-   qDebug() << "Enter";
+   qDebug() << "Enter: item = " << item;
    if (pDb == nullptr)
    {
       qDebug() << "Have no database";
@@ -62,6 +65,7 @@ void QcjLib::ButtonBoxFrame::setDatabase(const QString &item)
       QString fv = item;
       fv.remove("'");
       model.setFilter(QString(fn + "='" + fv + "'"));
+      qDebug() << "filter = " << model.filter();
    }
    model.select();
    while (model.canFetchMore())
@@ -87,17 +91,26 @@ void QcjLib::ButtonBoxFrame::setDatabase(const QString &item)
    QGridLayout *grid = new QGridLayout(this);
    int row = 0;
    int col = 0;
+   QAbstractButton *btn = nullptr;
    for (int recidx = 0; recidx < rows; recidx++)
    {
-      QAbstractButton *btn;
       QSqlRecord rec = model.record(recidx);
+      QString btn_text = rec.value(field_defs[0].dataName).toString();
       if (field_defs[0].fieldType.contains("radio"))
       {
-         btn = new QRadioButton(rec.value(field_defs[0].dataName).toString(), this);
+         btn = new QRadioButton(btn_text, this);
       }
       else
       {
-         btn = new QCheckBox(rec.value(field_defs[0].dataName).toString(), this);
+         qDebug() << "Creating LinkedCheckBox, text = " 
+                  << btn_text;
+#if 0
+         btn = new QCheckBox(btn_text, this);
+#else
+        btn = new LinkedCheckBox(btn_text,
+                                  dynamic_cast<LinkedCheckBox*>(btn), this);
+        connect(btn, SIGNAL(lastButton()), this, SLOT(focusNext()));
+#endif
       }
       grid->addWidget(btn, row, col);
       qDebug() << "cols= " << cols << "col = " << col;
@@ -108,6 +121,12 @@ void QcjLib::ButtonBoxFrame::setDatabase(const QString &item)
          col = 0;
       }
    }
+}
+
+void QcjLib::ButtonBoxFrame::focusNext()
+{
+   qDebug() << "1:Moving focus? " << focusNextChild();
+   qDebug() << "2:Moving focus? " << focusNextChild();
 }
 
 QStringList QcjLib::ButtonBoxFrame::checkedButtons()
@@ -136,5 +155,37 @@ QStringList QcjLib::ButtonBoxFrame::buttonList()
       }
    }
    return(rv);
+}
+
+QAbstractButton *QcjLib::ButtonBoxFrame::findButton(const QString &name)
+{
+   QAbstractButton *rv = nullptr;
+   foreach (QObject *obj, children())
+   {
+      QAbstractButton *btn = dynamic_cast<QAbstractButton*>(obj);
+      if (btn != nullptr)
+      {
+         qDebug() << "button name: " << btn->text();
+      }
+      if (btn != nullptr && btn->text() == name)
+      {
+         rv = btn;
+         break;
+      }
+   }
+   return(rv);
+}
+
+void QcjLib::ButtonBoxFrame::checkButtons(const QStringList &names)
+{
+   foreach (QString name, names)
+   {
+      qDebug() << "Testing for button: " << name;
+      QAbstractButton *btn = findButton(name);
+      if (btn != nullptr)
+      {
+         btn->setChecked(true);
+      }
+   }
 }
 
