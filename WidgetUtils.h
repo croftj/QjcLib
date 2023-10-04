@@ -13,6 +13,8 @@ namespace WidgetUtils
    QVariant getWidgetValue(QWidget *wdt);
    bool setWidgetValue(QWidget* wdt, QVariant val);
    QSqlField createField(QWidget *wdt, QString field_name);
+   bool isA(QObject *obj, const char *type);
+   bool isAObject(QObject *obj, const char *type);
 };
 
 #endif

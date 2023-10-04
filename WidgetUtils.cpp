@@ -9,59 +9,6 @@
 
 namespace WidgetUtils
 {
-   /*!
-         \fn bool isA(QObject *obj, const char *type)
-
-         Tests  the  passed  object  to  be  of  the  class name
-         specified by <em>type</em>.
-   */ 
-   bool isA(QObject *obj, const char *type)
-   {
-      qDebug() << "enter";
-      if ( obj != 0 ) 
-      {
-         const QMetaObject *mobj = obj->metaObject();
-         while (mobj != NULL) 
-         {
-            qDebug() << "have meta object";
-            qDebug() << "className: " << QString(mobj->className());
-            if ( QString(mobj->className()) == QString(type) ) 
-            {
-               qDebug() << "Found it!";
-                  return(true);
-            }
-            qDebug() << "moving to superClass";
-            mobj = mobj->superClass();
-         }
-      }
-      return(false);
-   }
-
-   /*!
-         \fn bool isAObject(QObject *obj, const char *type)
-
-         Tests the passed object to have the object name specified by
-         <em>type</em>.
-   */ 
-   static bool isAObject(QObject *obj, const char *type)
-   {
-      printf("isA(): Enter\n");
-      fflush(stdout);
-      if (obj != NULL && obj->objectName() == QString(type))
-      {
-         printf("isAObject(): objectName = |%s|\n", qPrintable(obj->objectName()));
-         fflush(stdout);
-         printf("isAObject(): Exit(true)\n");
-         fflush(stdout);
-         return(true);
-      }
-      else
-         printf("isAObject(): Object is a Null pointer\n");
-      printf("isAObject(): Exit(false)\n");
-      fflush(stdout);
-      return(false);
-   }
-
    /***********************************************************************/
    /* This function will search through the child widgets of the widget   */
    /* parameter form and search for one with the property field_name that */
@@ -207,5 +154,57 @@ namespace WidgetUtils
          rv.setPrecision(2);
       }
       return(rv);
+   }
+
+   bool isA(QObject *obj, const char *type)
+   {
+      printf("isA(): Enter\n");
+      fflush(stdout);
+      if ( obj != 0 ) 
+      {
+         const QMetaObject *mobj = obj->metaObject();
+         while (mobj != NULL) 
+         {
+            printf("isA(): className = |%s|\n", mobj->className());
+            fflush(stdout);
+            if ( QString(mobj->className()) == QString(type) ) 
+            {
+                  printf("isA(): Exit(true)\n");
+                  fflush(stdout);
+                  return(true);
+            }
+            mobj = mobj->superClass();
+         }
+      }
+      else
+         printf("isA(): Object is a Null pointer\n");
+      printf("isA(): Exit(false)\n");
+      fflush(stdout);
+      return(false);
+   }
+
+   /*!
+         \fn bool isAObject(QObject *obj, const char *type)
+
+         Tests  the  passed  object  to  be  of  the  type  specified by
+         <em>type</em>.
+   */ 
+   bool isAObject(QObject *obj, const char *type)
+   {
+      printf("isA(): Enter\n");
+      fflush(stdout);
+      if (obj != NULL && obj->objectName() == QString(type))
+      {
+         printf("isAObject(): objectName = |%s|\n", qPrintable(obj->objectName()));
+         fflush(stdout);
+         printf("isAObject(): Exit(true)\n");
+         fflush(stdout);
+         return(true);
+      }
+      else
+         printf("isAObject(): Object is a Null pointer\n");
+      printf("isAObject(): Exit(false)\n");
+      fflush(stdout);
+      return(false);
    }
 };
