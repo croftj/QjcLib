@@ -19,19 +19,24 @@ namespace WidgetUtils
    {
       QWidget *rv = NULL;
 
+      qDebug() << "search for field_name: " << field_name;
       // Get a list of al of the children widgets
       QList<QWidget*> widgets = form->findChildren<QWidget*>();
       foreach (QWidget *wdt, widgets)
       {
          QVariant fn = wdt->property("field_name");
-         qDebug() << "child object: " << wdt->objectName()
-                  << ", fieldName: " << fn.toString();
-         if (fn.isValid())
+         if (fn.toString().length() > 0)
          {
-            if (fn.toString() == field_name)
+            qDebug() << "child object: " << wdt->objectName()
+                     << ", fieldName: " << fn.toString();
+            if (fn.isValid())
             {
-               rv = wdt;
-               break;
+               if (fn.toString() == field_name)
+               {
+                  qDebug() << "found it!";
+                  rv = wdt;
+                  break;
+               }
             }
          }
       }
@@ -53,22 +58,22 @@ namespace WidgetUtils
       bool rv = true;
       if ( isA(wdt, "QTextEdit") || isA(wdt, "QcjTextBlockEdit") ) 
       {
-         qDebug() << "TextEdit";
+         qDebug() << "TextEdit: " << val.toString();
          static_cast<QcjTextBlockEdit*>(wdt)->setText(val.toString());
       }
       else if ( isA(wdt, "QLineEdit") ) 
       {
-         qDebug() << "LineEdit";
+         qDebug() << "LineEdit: " << val.toString();
          static_cast<QLineEdit*>(wdt)->setText(val.toString());
       }
       else if ( isA(wdt, "QSpinBox") )
       {
-         qDebug() << "spin";
+         qDebug() << "spin: " << val.toInt();
          static_cast<QSpinBox*>(wdt)->setValue(val.toInt());
       }
       else if (isA(wdt, "QDoubleSpinBox"))
       {
-         qDebug() << "double spin";
+         qDebug() << "double spin: " << val.toDouble();
          static_cast<QDoubleSpinBox*>(wdt)->setValue(val.toDouble());
       }
       else if ( isA(wdt, "QcjPhotoEntry") ) 
@@ -124,9 +129,21 @@ namespace WidgetUtils
       {
          rv = QVariant(static_cast<QcjTextBlockEdit*>(wdt)->text());
       }
-      else if ( isA(wdt, "QLineEdit") ) 
+      else if ( isA(wdt, "QcjPhotoEntry") ) 
+      {
+         rv = QVariant(static_cast<QcjPhotoEntry*>(wdt)->get());
+      }
+      else if ( isA(wdt, "QCheckBox") ) 
+      {
+         rv = QVariant(static_cast<QCheckBox*>(wdt)->isChecked());
+      }
+      else if ( isA(wdt, "QTextEdit") ) 
       {
          rv = QVariant(static_cast<QLineEdit*>(wdt)->text());
+      }
+      else if ( isA(wdt, "QcjPhotoEntry") ) 
+      {
+         rv = QVariant(static_cast<QcjPhotoEntry*>(wdt)->get());
       }
       else if ( isA(wdt, "QSpinBox") )
       {
@@ -158,7 +175,7 @@ namespace WidgetUtils
 
    bool isA(QObject *obj, const char *type)
    {
-      printf("isA(): Enter\n");
+      qDebug() << "Enter, type = " << type;
       fflush(stdout);
       if ( obj != 0 ) 
       {
