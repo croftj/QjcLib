@@ -1,4 +1,8 @@
 /******************************************************************************/
+/* $Id$                              */
+/*                                                                            */
+/* Author: Joe Croft, joe@croftj.net 2023                                     */
+/*                                                                            */
 /* This is free and unencumbered software released into the public domain.    */
 /*                                                                            */
 /* Anyone is free to copy, modify, publish, use, compile, sell, or distribute */
