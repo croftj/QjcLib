@@ -1,5 +1,6 @@
 #include "WidgetUtils.h"
 #include "../QcjData/QcjDataHelpers.h"
+#include "../QcjData/QcjDataXML.h"
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
@@ -81,6 +82,14 @@ namespace WidgetUtils
          qDebug() << "image";
          static_cast<QcjPhotoEntry*>(wdt)->set(val.toByteArray());
       }
+      else if (isA(wdt, "QCheckBox"))
+      {
+         static_cast<QCheckBox*>(wdt)->setChecked(val.toBool());
+      }
+      else if (isA(wdt, "QComboBox"))
+      {
+         static_cast<QComboBox*>(wdt)->setCurrentText(val.toString());
+      }
       else
       {
          rv = false;
@@ -91,11 +100,15 @@ namespace WidgetUtils
    QVariant::Type widgetType(QWidget *wdt)
    {
       QVariant::Type rv;
-      if ( isA(wdt, "QcjTextBlockEdit") ) 
+      if ( isA(wdt, "QcjCheckBox") ) 
+      {
+         rv = QVariant::Bool;
+      }
+      else if ( isA(wdt, "QcjTextBlockEdit") ) 
       {
          rv = QVariant::String;
       }
-      if ( isA(wdt, "QcjMoneyEdit") ) 
+      else if ( isA(wdt, "QcjMoneyEdit") ) 
       {
          rv = QVariant::Double;
       }
@@ -152,6 +165,10 @@ namespace WidgetUtils
       else if (isA(wdt, "QDoubleSpinBox"))
       {
          rv = QVariant(static_cast<QDoubleSpinBox*>(wdt)->value());
+      }
+      else if (isA(wdt, "QCheckBox"))
+      {
+         rv = QVariant(static_cast<QCheckBox*>(wdt)->isChecked());
       }
       return(rv);
    }

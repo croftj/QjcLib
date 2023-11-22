@@ -28,3 +28,22 @@ using namespace QcjLib;
 const QString SqlTableModel::LOG("QcjLib_table_model");
 static LogBuilder mylog(SqlTableModel::LOG, 1, "QcjLib Table Model");
 
+#if 0
+QSqlRecord SqlTableModel::insertBlankRecord()
+{
+   QSqlRecord rv = record();
+   QString index_field = pFormDef->getIndexField();
+   for (fld_count = 0; fld_count < rv.count(); fld_count++)
+   {
+      QSqlField = field(fld_count);
+      QString default_value = field.defaultValue();
+
+      if (field.name() == index_field)
+      {
+         defau
+         def_value = QString("nextval('") + model.tableName() + "_"
+                     + rec.fieldName(idx) + "_seq'::regclass)";
+
+
+}
+#endif

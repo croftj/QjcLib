@@ -154,6 +154,8 @@ namespace QcjLib
          return(QSqlTableModel::data(index, role));
       }
 
+//      QSqlRecord insertBlankRecord();
+
       static const QString LOG;
 
    private:
