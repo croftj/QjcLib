@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CameraCaptureDialog</class>
+ <widget class="QDialog" name="CameraCaptureDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>2016</width>
+    <height>1357</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="5" column="1">
+    <widget class="QCheckBox" name="checkBox">
+     <property name="text">
+      <string>Set Default</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QPushButton" name="keepBtn">
+     <property name="text">
+      <string>Keep</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1">
+    <widget class="QPushButton" name="cancelBtn">
+     <property name="text">
+      <string>Cancel</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QComboBox" name="cameraSelect">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0" rowspan="7">
+    <widget class="QFrame" name="frame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QCameraViewfinder" name="viewFinder" native="true"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="1" rowspan="5">
+    <widget class="QFrame" name="frame_2">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <widget class="QToolButton" name="captureImageBtn">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>430</y>
+        <width>96</width>
+        <height>96</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="toolTip">
+       <string>Capture Image</string>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="text">
+       <string>...</string>
+      </property>
+      <property name="icon">
+       <iconset>
+        <normaloff>../camera_shutter.png</normaloff>../camera_shutter.png</iconset>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>80</width>
+        <height>80</height>
+       </size>
+      </property>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QCameraViewfinder</class>
+   <extends>QWidget</extends>
+   <header location="global">QCameraViewfinder</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
