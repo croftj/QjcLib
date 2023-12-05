@@ -122,6 +122,45 @@ void GenericDoubleDelegate::setModelData(QWidget *editor, QAbstractItemModel *mo
 /****************************************************************************/
 /****************************************************************************/
 
+const QString GenericReadOnlyDelegate::LOG("QcjLib_generic_delegate");
+
+GenericReadOnlyDelegate::GenericReadOnlyDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+{
+   m_fieldData = fieldData;
+}
+
+QWidget *GenericReadOnlyDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const
+{
+   QLabel *templ = dynamic_cast<QLabel*>(m_fieldData.widget);
+   QLabel *editor = new QLabel(parent);
+   qDebug(*log(LOG, 1)) << "editor =" << (unsigned long)editor;
+   connect(editor, SIGNAL(editingFinished()), this, SLOT(closeCommitEditor()));
+   return(editor);
+}
+
+void GenericReadOnlyDelegate::closeCommitEditor()
+{
+   QLabel *editor = qobject_cast<QLabel*>(sender());
+   emit commitData(editor);
+   emit closeEditor(editor);
+}
+
+void GenericReadOnlyDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+{
+   dynamic_cast<QLabel*>(editor)->setText(index.model()->data(index, Qt::EditRole).toString());
+}
+
+void GenericReadOnlyDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
+                  const QModelIndex &index) const
+{
+   QVariant value(dynamic_cast<QLabel*>(editor)->text());
+   model->setData(index, value, Qt::EditRole);
+}
+
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************/
+
 GenericMoneyDelegate::GenericMoneyDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
