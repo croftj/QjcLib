@@ -58,43 +58,52 @@ void TableView::setFields(int row)
       /*******************************************************************/
       if ( ! m_haveDelegates)
       {
-       qDebug(*log(LOG, 1)) << "Have field: " << field.label;
+         qDebug(*log(LOG, 1)) << "Have field: " << field.label;
          if (field.widget != nullptr)
          {
             field.widget->hide();
          }
 
          QString fieldType = field.fieldType;
-         if (fieldType == "integer")
+         if ( ! field.ro)
          {
-            GenericIntDelegate *delegate = new GenericIntDelegate(field, this);
-            setItemDelegateForColumn(column, delegate);
+            if (fieldType == "integer")
+            {
+               GenericIntDelegate *delegate = new GenericIntDelegate(field, this);
+               setItemDelegateForColumn(column, delegate);
+            }
+            else if (fieldType == "double")
+            {
+               GenericDoubleDelegate *delegate = new GenericDoubleDelegate(field, this);
+               setItemDelegateForColumn(column, delegate);
+            }
+            else if (fieldType == "money")
+            {
+               GenericMoneyDelegate *delegate = new GenericMoneyDelegate(field, this);
+               setItemDelegateForColumn(column, delegate);
+               model_ptr->setData(model_ptr->index(row, column), 
+                                 QVariant(Qt::AlignRight), Qt::TextAlignmentRole);
+            }
+            else if (fieldType == "strsel")
+            {
+               GenericStringSelectDelegate *delegate = new GenericStringSelectDelegate(field, this);
+               setItemDelegateForColumn(column, delegate);
+            }
+            else if (fieldType == "yesno")
+            {
+               GenericYesNoDelegate *delegate = new GenericYesNoDelegate(field, this);
+               setItemDelegateForColumn(column, delegate);
+            }
+            else if (fieldType == "phone")
+            {
+               GenericPhoneDelegate *delegate = new GenericPhoneDelegate(field, this);
+               setItemDelegateForColumn(column, delegate);
+            }
          }
-         else if (fieldType == "double")
+         else
          {
-            GenericDoubleDelegate *delegate = new GenericDoubleDelegate(field, this);
-            setItemDelegateForColumn(column, delegate);
-         }
-         else if (fieldType == "money")
-         {
-            GenericMoneyDelegate *delegate = new GenericMoneyDelegate(field, this);
-            setItemDelegateForColumn(column, delegate);
-            model_ptr->setData(model_ptr->index(row, column), 
-                               QVariant(Qt::AlignRight), Qt::TextAlignmentRole);
-         }
-         else if (fieldType == "strsel")
-         {
-            GenericStringSelectDelegate *delegate = new GenericStringSelectDelegate(field, this);
-            setItemDelegateForColumn(column, delegate);
-         }
-         else if (fieldType == "yesno")
-         {
-            GenericYesNoDelegate *delegate = new GenericYesNoDelegate(field, this);
-            setItemDelegateForColumn(column, delegate);
-         }
-         else if (fieldType == "phone")
-         {
-            GenericPhoneDelegate *delegate = new GenericPhoneDelegate(field, this);
+            qDebug() << "Read only field!";
+            GenericReadOnlyDelegate *delegate = new GenericReadOnlyDelegate(field, this);
             setItemDelegateForColumn(column, delegate);
          }
       }
@@ -150,13 +159,12 @@ bool TableView::event(QEvent *evt)
          if (model() != nullptr)
             edit(model()->index(0, 0));
       }
-
    }
    else if (true && evt->type() != QEvent::Timer)
    {
       qDebug() << __FUNCTION__ << "Have event: " << evt->type();
    }
-   return(false);
+   return(QTableView::event(evt));
 }
 
 void TableView::keyPressEvent(QKeyEvent *evt)

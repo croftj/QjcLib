@@ -108,7 +108,7 @@ namespace QcjLib
       };
 
       virtual bool focusInEvent(QEvent *evt);
-      virtual bool event(QEvent *evt);
+      virtual bool event(QEvent *evt) override;
       virtual void keyPressEvent(QKeyEvent *evt);
 
    protected slots:
