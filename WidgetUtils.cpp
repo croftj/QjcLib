@@ -26,8 +26,8 @@
 /* For more information, please refer to <http://unlicense.org/>              */
 /******************************************************************************/
 #include "WidgetUtils.h"
-#include "../QcjData/QcjDataHelpers.h"
 #include "../QcjData/QcjDataXML.h"
+#include "../QcjData/QcjDataHelpers.h"
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
@@ -87,7 +87,7 @@ namespace WidgetUtils
       if ( isA(wdt, "QTextEdit") || isA(wdt, "QcjTextBlockEdit") ) 
       {
          qDebug() << "TextEdit: " << val.toString();
-         static_cast<QcjTextBlockEdit*>(wdt)->setText(val.toString());
+ static_cast<QcjTextBlockEdit*>(wdt)->setText(val.toString());
       }
       else if ( isA(wdt, "QLineEdit") ) 
       {
@@ -267,5 +267,54 @@ namespace WidgetUtils
       printf("isAObject(): Exit(false)\n");
       fflush(stdout);
       return(false);
+   }
+
+   QString objectType(QObject *obj)
+   {
+      QString rv = QStringLiteral("nullptr");
+      if ( obj != 0 ) 
+      {
+         const QMetaObject *mobj = obj->metaObject();
+         rv = mobj->className();
+         while (mobj != NULL) 
+         {
+            mobj = mobj->superClass();
+         }
+      }
+      return(rv);
+   }
+
+   void fieldDefToString(const QcjDataFieldDef &field_def)
+   {
+      qDebug().nospace() << "field_def = " 
+               << "dataname: "      << field_def.dataName << "\n"
+               << "label: "         << field_def.label << "\n"
+               << "key: "           << field_def.key << "\n"
+               << "valuename: "     << field_def.valueName << "\n"
+               << "row: "           << field_def.row << "\n"
+               << "col: "           << field_def.col << "\n"
+               << "colspan: "       << field_def.colSpan << "\n"
+               << "rowspan: "       << field_def.rowSpan << "\n"
+               << "minwidth: "      << field_def.minWidth << "\n"
+               << "maxwidth: "      << field_def.maxWidth << "\n"
+               << "ro: "            << field_def.ro << "\n"
+               << "init: "          << field_def.init << "\n"
+               << "defvalue: "      << field_def.defvalue << "\n"
+               << "fieldtype: "     << field_def.fieldType << "\n"
+               << "propname: "      << field_def.propName << "\n"
+               << "options: "       << field_def.options << "\n"
+               << "format: "        << field_def.format << "\n"
+               << "align: "         << field_def.align << "\n"
+               << "color: "         << field_def.color << "\n"
+               << "bgcolor: "       << field_def.bgcolor << "\n"
+               << "width: "         << field_def.width << "\n"
+               << "height: "        << field_def.height << "\n"
+               << "search: "        << field_def.search << "\n"
+               << "minvalue: "      << field_def.minValue << "\n"
+               << "maxvalue: "      << field_def.maxValue << "\n"
+               << "stepvalue: "     << field_def.stepValue << "\n"
+               << "decimals: "      << field_def.decimals << "\n"
+               << "suffix: "        << field_def.suffix << "\n"
+               << "focuswidget: "   << field_def.focusWidget << "\n";
    }
 };

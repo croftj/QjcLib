@@ -52,15 +52,20 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QMessageBox>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QSqlQuery>
 #include <QStringList>
 #include <QWidget>
 #include "DataWidgets.h"
+#include "WidgetUtils.h"
 #include "QcjData/QcjDataHelpers.h"
+#include "QcjData/QcjDataLogin.h"
 #include "QcjData/QcjDataStatics.h"
 #include "QcjData/QcjPhotoSelect.h"
 #include "QcjLib/CameraCaptureDialog.h"
+#include "QcjLib/SqlError.h"
 
 //#define NO_PHOTO_SELECT
 
@@ -68,6 +73,16 @@ using namespace QcjLib;
 
 namespace
 {
+   QString DELETE_SQL = { QStringLiteral("delete from %1 where %2") };
+   QString SELECT_SQL = { QStringLiteral("select %1 from %2 where %3 for update nowait") };
+   QString INSERT_SQL = { QStringLiteral("insert into %1 (%2) overriding user value values (%3) returning *") };
+   QString UPDATE_SQL = { QStringLiteral("update %1 set %2 where %3") };
+
+   QString UNSAVED_CHANGES_TITLE = { QStringLiteral("Unsaved Changes") };
+   QString UNSAVED_CHANGES_MSG   = { QStringLiteral("The form has unsaved changes.<br>"
+                                                    "Do you want to Save them or Discard them"  
+                                                   ) };
+
    QString parseInitString(QString init)
    {
       QString rv;
@@ -92,77 +107,6 @@ namespace
       }
       return(rv);
    }
-
-   /***********************************************************************/
-   /* This function serves as a datawidget factory of sorts. It uses the  */
-   /* fieldType element in the field definition to create the appropriate */
-   /* widget for the form.                                                */
-   /***********************************************************************/
-   DataWidget *buildWidget(const QcjDataFieldDef &field_def, const QString &xmldef, QWidget *parent)
-   {
-#if 1
-      DataWidget *rv;
-      if (field_def.fieldType == DataWidget::LINE_EDIT)
-      {
-         rv = new TextLineEdit(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::TEXT_EDIT)
-      {
-         rv = new TextBlockEdit(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::PHONE_EDIT)
-      {
-         rv = new PhoneEdit(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::STRING_SELECT)
-      {
-         rv = new StringSelect(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::INTEGER_SPIN)
-      {
-         rv = new SpinBox(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::DOUBLE_SPIN)
-      {
-         rv = new DoubleSpinBox(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::MONEY_EDIT)
-      {
-         rv = new MoneyEdit(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::IMAGE_EDIT)
-      {
-         rv = new PhotoEntry(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::YESNO_SELECT)
-      {
-         rv = new YesNoSelect(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::CHECKBOX)
-      {
-         rv = new CheckBox(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::DATE_EDIT)
-      {
-         rv = new DateEntry(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::TIME_EDIT)
-      {
-         rv = new TimeEntry(parent);
-      }
-      else if  (field_def.fieldType == DataWidget::DATE_TIME_EDIT)
-      {
-         rv = new TimestampEntry(parent);
-      }
-      else
-      {
-         rv = new TextLineEdit(parent);
-         qWarning() << "Invalid field type defined for field " << field_def.dataName
-                    << " of form definition " << xmldef;
-      }
-      return(rv);
-#endif
-   }
 }
 
 const QString DataWidget::LINE_EDIT       = {QStringLiteral("lineedit")};
@@ -171,7 +115,7 @@ const QString DataWidget::PHONE_EDIT      = {QStringLiteral("phone")};
 const QString DataWidget::STRING_SELECT   = {QStringLiteral("strsel")};
 const QString DataWidget::INTEGER_SPIN    = {QStringLiteral("integer")};
 const QString DataWidget::DOUBLE_SPIN     = {QStringLiteral("double")};
-const QString DataWidget::MONEY_EDIT      = {QStringLiteral("monet")};
+const QString DataWidget::MONEY_EDIT      = {QStringLiteral("money")};
 const QString DataWidget::IMAGE_EDIT      = {QStringLiteral("image")};
 const QString DataWidget::YESNO_SELECT    = {QStringLiteral("yesno")};
 const QString DataWidget::CHECKBOX        = {QStringLiteral("checkbox")};
@@ -180,21 +124,69 @@ const QString DataWidget::TIME_EDIT       = {QStringLiteral("time")};
 const QString DataWidget::DATE_TIME_EDIT  = {QStringLiteral("timestamp")};
 
 /*!
-   \class QcjLib::AutoDataForm
+\class QcjLib::AutoDataForm
 
    This class is an auto populating QcjLib::DataForm that 
    creates the desired form elements based off an XML form definirion
 */
-AutoDataForm::AutoDataForm(QWidget *parent) : DataForm(parent)
+AutoDataForm::AutoDataForm(QWidget *parent) : DataForm(parent),
+                                              m_inTransaction(false)
 {
+}
+
+void AutoDataForm::clearForm()
+{
+   DataForm::clearForm();
+}
+
+void AutoDataForm::beginTransaction()
+{
+   if ( ! m_inTransaction)
+   {
+      m_inTransaction = true;
+      qDebug() << "calling transaction";
+      qDebug() << objectName() << "m_db = " << m_db;
+      m_db.transaction();
+      qDebug() << "back";
+   }
+}
+
+void AutoDataForm::commitTransaction(bool emit_updated)
+{
+   if (m_inTransaction)
+   {
+      m_inTransaction = false;
+      m_db.commit();
+      if (emit_updated)
+      {
+         emit(updated());
+      }
+   }
+}
+
+void AutoDataForm::rollbackTransaction()
+{
+   if (m_inTransaction)
+   {
+      m_inTransaction = false;
+      m_db.rollback();
+      emit(updated());
+   }
 }
 
 void AutoDataForm::setDatabase()
 {
+   QcjDataLogin login;
+   m_db = login.database(getXmldef());
+
+   qDebug() << objectName() << "pDb = " << (unsigned long)pDb << ", m_db = " << m_db;
    QGridLayout *gl = new QGridLayout(this);
    gl->setSpacing(3);
    gl->activate();
 
+   m_indexName = pFormDef->getIndexField(m_xmldef);
+   m_tableName = pFormDef->getTable(m_xmldef);
+   m_model.setTable(m_tableName);
    QSizePolicy lblPolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
    QSizePolicy wdtPolicySingle(QSizePolicy::Minimum, QSizePolicy::Maximum);
    QSizePolicy wdtPolicyMulti(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
@@ -202,15 +194,21 @@ void AutoDataForm::setDatabase()
    QSizePolicy wdtPolicyPhoto(QSizePolicy::Preferred, QSizePolicy::Preferred);
 #endif
 
-   QcjDataFieldStdVector field_defs = pFormDef->getFields(m_xmldef, this);
+   QcjDataFieldStdVector field_defs = pFormDef->getFields(m_xmldef, nullptr);
    foreach(const QcjDataFieldDef &f_def, field_defs)
    {
       int col = f_def.col * 2;
       int row = f_def.row;
-      DataWidget *wdt = buildWidget(f_def, m_xmldef, this);
+      if (f_def.dataName == "--ENDOFFIELDS--")
+      {
+         break;
+      }
+      qDebug() << "Calling widgetFactory for field: " << f_def.dataName;
+      WidgetUtils::fieldDefToString(f_def);
+      DataWidget *wdt = DataWidget::widgetFactory(f_def, m_xmldef, this);
       QLabel *lbl = new QLabel(f_def.label, this);
       lbl->setSizePolicy(lblPolicy);
-      if (f_def.rowSpan <= 0)
+      if (f_def.rowSpan <= 1)
       {
          gl->addWidget(lbl, row, col);
       }
@@ -231,7 +229,7 @@ void AutoDataForm::setDatabase()
          {
             wdt->setSizePolicy(wdtPolicySingle);
          }
-         gl->addWidget(wdt->widget(), row, col, rows, cols > 1 ? ((cols - 1) * 2) + 1 : cols);
+         gl->addWidget(wdt->widget(), row, col * 2 + 1, rows, cols > 1 ? cols * 2 : 1);
       }
       else
       {
@@ -244,18 +242,279 @@ void AutoDataForm::setDatabase()
       }
 #endif      
    }
+   qDebug() << "Calling DataForm::setDatabase()";
    DataForm::setDatabase();
+   qDebug() << "exit";
+}
+
+bool AutoDataForm::validateSave()
+{
+   int btn = QMessageBox::question(this, UNSAVED_CHANGES_TITLE,
+                        UNSAVED_CHANGES_MSG,
+                        QMessageBox::Save | QMessageBox::Discard,
+                        QMessageBox::Save);
+   return(btn == QMessageBox::Save);
+}
+
+void AutoDataForm::deleteRecord()
+{
+   QString fields;
+   QString filter = pFormDef->getWhereClause(m_xmldef, &m_record, &m_db);
+
+   qDebug() << "Have filter: " << filter;
+   QString sql(DELETE_SQL);
+   sql = sql.arg(m_model.tableName())
+            .arg(filter);
+   qDebug() << "sql: " << sql;
+   QSqlQuery q1;
+   q1.prepare(sql);
+   if ( ! q1.exec())
+   {
+      SqlError::showError("deleting record", this);
+      rollbackTransaction();
+      return;
+   }
+   emit(updated());
+}
+
+void AutoDataForm::insertRecord()
+{
+   insertRecord(VariantMap());
+}
+
+void AutoDataForm::insertRecord(const VariantMap &predefined_fields)
+{
+   QString fields;
+   QString bindings;
+   VariantMap field_vals;
+
+   qDebug() << "enter- xmldef = " << m_xmldef << ", predefined fields: " << field_vals;
+   if (hasChanges())
+   {
+      if (validateSave())
+      {
+         updateRecord();
+         commitTransaction();
+      }
+      else
+      {
+         rollbackTransaction();
+      }
+   }
+   beginTransaction();
+
+   QString sql(INSERT_SQL);
+#if 1
+   foreach (const QString &field_name, predefined_fields.keys())
+   {
+      field_vals.insert(field_name, predefined_fields.value(field_name));
+      if (fields.length() > 0)
+      {
+         fields += ", ";
+         bindings += ", ";
+      }
+      fields += field_name;
+      bindings += QString(":%1").arg(field_name);
+   }
+   foreach (const QString &field_name, m_widgetMap.keys())
+   {
+      const DataWidget *data_wdt = m_widgetMap.value(field_name);
+      qDebug() << "testing field: " << field_name;
+      QVariant def_val = pFormDef->getFieldDefault(data_wdt->getFieldDef());
+      if ( ! def_val.toString().isEmpty())
+      {
+         qDebug() << "adding field: " << field_name;
+         field_vals.insert(field_name, def_val);
+         if (fields.length() > 0)
+         {
+            fields += ", ";
+            bindings += ", ";
+         }
+         fields += field_name;
+         bindings += QString(":%1").arg(field_name);
+      }
+   }
+#endif
+   sql = sql.arg(m_model.tableName())
+            .arg(fields)
+            .arg(bindings);
+   qDebug() << "sql: " << sql;
+   QSqlQuery q1;
+   q1.prepare(sql);
+   foreach (const QString &field_name, field_vals.keys())
+   {
+      qDebug() << "Binding " << field_vals.value(field_name).toString() 
+               << QString(" to :%1").arg(field_name);
+      q1.bindValue(QString(":%1").arg(field_name), field_vals.value(field_name).toString());
+   }
+   if ( ! q1.exec())
+   {
+      SqlError::showError("inserting record", this);
+      rollbackTransaction();
+      return;
+   }
+   if (q1.next())
+   {
+      QSqlRecord rec = q1.record();
+      refresh(&rec, true);
+      emit(updated());
+   }
+   else
+   {
+      qDebug() << "No new frecord returned";
+   }
+}
+
+QString AutoDataForm::makeFilter()
+{
+   return(pFormDef->getWhereClause(m_xmldef, &m_record, &m_db));
+}
+
+void AutoDataForm::refresh(QSqlRecord *record)
+{
+   refresh(record, false);
+}
+
+void AutoDataForm::refresh(QSqlRecord *record, bool no_transaction)
+{
+   qDebug() << objectName() << "enter...";
+   if (! no_transaction && hasChanges())
+   {
+      if (validateSave())
+      {
+         updateRecord();
+         commitTransaction();
+      }
+      else
+      {
+         rollbackTransaction();
+      }
+   }
+
+   qDebug() << objectName() << "no_transaction = " << no_transaction;
+   if (! no_transaction)
+   {
+      beginTransaction();
+   }
+
+   qDebug() << objectName() << "setting m_record to " << record;
+   m_record = *record;
+
+   qDebug() << objectName() << "fetching where clause";
+   QString filter = pFormDef->getWhereClause(m_xmldef, &m_record, &m_db);
+   qDebug() << "Have filter: " << filter;
+   qDebug() << objectName() << "m_fieldLabelMap: " << m_fieldLabelMap;
+   QString sql(SELECT_SQL);
+   sql = sql.arg(m_fieldLabelMap.keys().join(", "))
+            .arg(m_model.tableName())
+            .arg(filter);
+   qDebug() << "sql: " << sql;
+   QSqlQuery q1;
+   q1.prepare(sql);
+   if ( ! q1.exec())
+   {
+      SqlError::showError("fetching selected record", this);
+      rollbackTransaction();
+      return;
+   }
+   if (q1.next())
+   {
+      recordToForm(q1.record());
+   }
+}
+
+void AutoDataForm::updateRecord()
+{
+   QString fields;
+   QString filter = pFormDef->getWhereClause(m_xmldef, &m_record, &m_db);
+   QSqlRecord record = formToRecord(m_model.record());
+
+   qDebug() << "Have filter: " << filter;
+   QString sql(UPDATE_SQL);
+   foreach (const DataWidget *data_wdt, modifiedFields())
+   {
+      QString field_name = data_wdt->getFieldName();
+      if (fields.length() > 0)
+      {
+         fields += ", ";
+      }
+      fields += field_name + " = :" + field_name;
+   }
+   sql = sql.arg(m_model.tableName())
+            .arg(fields)
+            .arg(filter);
+   qDebug() << "sql: " << sql;
+   QSqlQuery q1;
+   q1.prepare(sql);
+   foreach (const DataWidget *data_wdt, modifiedFields())
+   {
+      QString field_name = data_wdt->getFieldName();
+      QVariant field_value = data_wdt->getValue();
+//      qDebug() << "Binding " << data_wdt->getValue().toString() << QString(" to :%1").arg(field_name);
+      q1.bindValue(QString(":%1").arg(field_name), data_wdt->getValue());
+   }
+   if ( ! q1.exec())
+   {
+      SqlError::showError("updating record", this);
+      rollbackTransaction();
+      return;
+   }
+   emit(updated());
 }
 
 /*!
    \class QcjLib::DataForm
 
    This class is a QFrame that used to hold various types
-   of DataWidgets and has functionality to Readily access
+   of DataWidget and has functionality to Readily access
    the data in the widgetes as QSqlRecord objects.
 */
 DataForm::DataForm(QWidget *parent) : QFrame(parent)
 {
+}
+
+bool DataForm::hasChanges() const
+{
+   QList<DataWidget*> rv;
+   QList<QWidget*> widgets = findChildren<QWidget*>();
+   return(false);
+
+   foreach (QWidget *wdt, widgets)
+   {
+      DataWidget *data_wdt = dynamic_cast<DataWidget*>(wdt);
+      if (data_wdt != nullptr)
+      {
+         qDebug() << "Testing widget: " << data_wdt->getFieldName();
+         if (data_wdt->hasChanges())
+         {
+            qDebug() << objectName() << ": field" << data_wdt->getFieldName() << " changed";
+            return(true);
+         }
+      }
+   }
+   qDebug() << "No fields changed";
+   return(false);
+}
+
+QList<DataWidget*> DataForm::modifiedFields()
+{
+   QList<DataWidget*> rv;
+   QList<QWidget*> widgets = findChildren<QWidget*>();
+   foreach (QWidget *wdt, widgets)
+   {
+      DataWidget *data_wdt = dynamic_cast<DataWidget*>(wdt);
+      if (data_wdt != nullptr)
+      {
+         qDebug() << "Testing widget: " << data_wdt->getFieldName();
+         if (data_wdt->hasChanges())
+         {
+            qDebug() << "Adding " << data_wdt->getFieldDef().dataName 
+                     << " to modified widget list";
+            rv << data_wdt;
+         }
+      }
+   }
+   return(rv);
 }
 
 void DataForm::setDatabase()
@@ -266,13 +525,17 @@ void DataForm::setDatabase()
       DataWidget *data_wdt = dynamic_cast<DataWidget*>(wdt);
       if (data_wdt != nullptr && ! data_wdt->getFieldName().isEmpty())
       {
-         qDebug() << "Initialializing field: " << data_wdt->getFieldName();
+         qDebug() << "Initializing field: " << data_wdt->getFieldName();
          data_wdt->initialize(m_xmldef);
          QcjDataFieldDef field_def = data_wdt->getFieldDef();
+         qDebug() << "dataName: " << field_def.dataName
+                  << ", label: " << field_def.label;
          m_fieldLabelMap.insert(field_def.dataName, field_def.label);
          m_labelFieldMap.insert(field_def.label, field_def.dataName);
+         m_widgetMap.insert(field_def.dataName, data_wdt);
       }
    }
+   qDebug() << objectName() << "m_fieldLabelMap: " << m_fieldLabelMap;
 }
 
 QSqlRecord DataForm::formToRecord(const QSqlRecord &record) const
@@ -298,9 +561,22 @@ QSqlRecord DataForm::formToRecord(const QSqlRecord &record) const
    return(rec);
 }
 
-void DataForm::recordToForm(const QSqlRecord &record)
+void DataForm::clearForm()
 {
-   QSqlRecord rec = record;
+   QList<QWidget*> widgets = findChildren<QWidget*>();
+   foreach (QWidget *wdt, widgets)
+   {
+      DataWidget *data_wdt = dynamic_cast<DataWidget*>(wdt);
+      if (data_wdt != nullptr)
+      {
+         data_wdt->setDefault();
+      }
+   }
+}
+
+void DataForm::recordToForm(const QSqlRecord &rec)
+{
+   qDebug() << "rec: " << rec;
    QList<QWidget*> widgets = findChildren<QWidget*>();
    foreach (QWidget *wdt, widgets)
    {
@@ -308,6 +584,10 @@ void DataForm::recordToForm(const QSqlRecord &record)
       if (data_wdt != nullptr)
       {
          QString rec_name = m_labelFieldMap.value(data_wdt->getFieldName());
+         if (rec_name == QString())
+         {
+            rec_name = data_wdt->getFieldName();
+         }
          qDebug() << "fieldName = " << data_wdt->getFieldName() << "rec_name = " << rec_name;
          if (rec.contains(rec_name))
          {
@@ -315,12 +595,13 @@ void DataForm::recordToForm(const QSqlRecord &record)
             {
                QcjDataFieldDef field_def = data_wdt->getFieldDef();
                qDebug() << "Setting form field " << data_wdt->getFieldName() << " to default: " << field_def.defvalue;
-               data_wdt->setValue(QVariant(field_def.defvalue));
+               data_wdt->setValue(data_wdt->defaultValue());
             }
             else
             {
                qDebug() << "Setting form field " << data_wdt->getFieldName() << " to " << rec.value(rec_name);
                data_wdt->setValue(rec.value(rec_name));
+               qDebug() << "value set";
             }
             qDebug() << "widget " << data_wdt->getFieldName()
                      << "set to: " << data_wdt->getText();
@@ -330,13 +611,107 @@ void DataForm::recordToForm(const QSqlRecord &record)
 }
 
 /********************************************************************/
-/* Base widget for all of the various DataWidgets that can populate */
+/* Base widget for all of the various DataWidget that can populate  */
 /* a DataForm                                                       */
 /********************************************************************/
+
+/***********************************************************************/
+/* This function serves as a datawidget factory. It uses the fieldType */
+/* element in the field definition to create the appropriate widget    */
+/* for the form.                                                       */
+/***********************************************************************/
+DataWidget *DataWidget::widgetFactory(const QcjDataFieldDef &field_def, const QString &xmldef, QWidget *parent)
+{
+#if 1
+   DataWidget *rv;
+   qDebug() << "Enter- xmldef = " << xmldef;
+   if (field_def.fieldType == DataWidget::LINE_EDIT)
+   {
+      rv = new TextLineEdit(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::TEXT_EDIT)
+   {
+      rv = new TextBlockEdit(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::PHONE_EDIT)
+   {
+      rv = new PhoneEdit(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::STRING_SELECT)
+   {
+      rv = new StringSelect(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::INTEGER_SPIN)
+   {
+      rv = new SpinBox(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::DOUBLE_SPIN)
+   {
+      rv = new DoubleSpinBox(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::MONEY_EDIT)
+   {
+      rv = new MoneyEdit(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::IMAGE_EDIT)
+   {
+      rv = new PhotoEntry(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::YESNO_SELECT)
+   {
+      rv = new YesNoSelect(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::CHECKBOX)
+   {
+      rv = new CheckBox(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::DATE_EDIT)
+   {
+      rv = new DateEntry(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::TIME_EDIT)
+   {
+      rv = new TimeEntry(parent);
+   }
+   else if  (field_def.fieldType == DataWidget::DATE_TIME_EDIT)
+   {
+      rv = new TimestampEntry(parent);
+   }
+   else
+   {
+      rv = new TextLineEdit(parent);
+      qWarning() << "Invalid field type defined for field " << field_def.dataName
+                  << " of form definition " << xmldef;
+   }
+   rv->setFieldName(field_def.dataName);
+   rv->setFieldDefinition(field_def);
+   return(rv);
+#endif
+}
+
+QVariant DataWidget::defaultValue() const
+{
+   return(QVariant(m_fieldDef.defvalue));
+}
+
+bool DataWidget::hasChanges() const
+{
+   qDebug() << "Original value: " << m_setValue;
+   qDebug() << "Current value: " << getValue();
+   return(m_setValue.isValid() && getValue() != m_setValue);
+}
+
 void DataWidget::setText(const QString &)
 {
    qDebug() << "Function not implimented";
 };
+
+void DataWidget::setFieldDefinition(const QcjDataFieldDef &field_def)
+{
+   m_fieldDef = field_def;
+   qDebug() << "dataName: " << m_fieldDef.dataName
+            << ", label: " << m_fieldDef.label;
+}
 
 void DataWidget::setFieldDefinition(const QString &xmldef)
 {
@@ -345,7 +720,347 @@ void DataWidget::setFieldDefinition(const QString &xmldef)
       m_xmldef = xmldef;
    }
    qDebug() << "Get field def";
-   m_fieldDef = pFormDef->getFieldDef(xmldef, m_fieldName);
+   if (m_fieldDef.dataName.isEmpty())
+   {
+      m_fieldDef = pFormDef->getFieldDef(xmldef, m_fieldName);
+   }
+}
+
+/***************************************************************/
+/***************************************************************/
+/***                  CheckBox Widget                        ***/
+/***************************************************************/
+/***************************************************************/
+QVariant CheckBox::defaultValue() const
+{
+   QString def_value = m_fieldDef.defvalue.trimmed().toUpper().at(0);
+   if (def_value == "C" || def_value == "Y")
+   {
+      return(QVariant("Y"));
+   }
+   else
+   {
+      return(QVariant("N"));
+   }
+}
+
+bool CheckBox::hasChanges() const
+{
+   qDebug() << "Original value: " << m_setValue;
+   qDebug() << "Current value: " << getValue();
+   return(m_setValue != QString() && getValue() != m_setValue);
+}
+
+void CheckBox::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef
+            << ", text = " << text();
+   setFieldDefinition(xmldef);
+
+   QString def_value = m_fieldDef.defvalue.trimmed().toUpper().at(0);
+   if (def_value == "C" || def_value == "Y")
+   {
+      setChecked(true);
+      m_setValue = def_value;
+   }
+   else
+   {
+      setChecked(false);
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+QVariant CheckBox::getValue() const
+{
+   return(QVariant(getText()));
+}
+
+QString CheckBox::getText() const
+{
+   QString rv;
+#ifndef QT4_DESIGNER_PLUGIN
+   rv = isChecked() ? "Y" : "N";
+#endif
+   return(rv);
+}
+
+void CheckBox::setText(const QString &str)
+{
+   if (str == QString())
+   {
+      setText("No");
+   }
+   else
+   {
+      QCheckBox::setText(str);
+   }
+}
+
+
+void CheckBox::setValue(const QVariant &value)
+{
+   m_setValue = value;
+   QString str_value = value.toString().trimmed().toUpper().at(0);
+   qDebug() << "str_value = " << str_value 
+            << "checked: " << (str_value == "C" || str_value == "Y");
+   setChecked(str_value == "C" || str_value == "Y");
+}
+
+void CheckBox::setDefault()
+{
+   qDebug() << getFieldName() << "default value = " << m_fieldDef.defvalue;
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+   
+/***************************************************************/
+/***************************************************************/
+/***                 DateEntry Widget                        ***/
+/***************************************************************/
+/***************************************************************/
+void DateEntry::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+QVariant DateEntry::getValue() const
+{
+   return(QVariant(date()));
+}
+
+QString DateEntry::getText() const
+{
+   return(QString());
+}
+
+void DateEntry::setValue(const QVariant &value)
+{
+   m_setValue = value;
+   if (value.type() == QVariant::Date ||
+       value.type() == QVariant::DateTime)
+   {
+      setDate(value.toDate());
+   }
+   else
+   {
+      QString date_fmt = pConfig->value("DateFormat").toString();
+      setDate(QDate::fromString(value.toString(), date_fmt));
+   }
+}
+
+void DateEntry::setText(const QString &t)
+{
+#ifndef QT4_DESIGNER_PLUGIN
+   QString date_fmt = pConfig->value("DateFormat").toString();
+   setDate(QDate::fromString(t, date_fmt));
+#endif
+}
+
+void DateEntry::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+   
+/***************************************************************/
+/***************************************************************/
+/***                   DoubleSpinBox Widget                  ***/
+/***************************************************************/
+/***************************************************************/
+void DoubleSpinBox::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+
+   if (m_fieldDef.defvalue != QString())
+   {
+      setValue(m_fieldDef.defvalue.toDouble());
+   }
+   if (m_fieldDef.minValue != QString())
+   {
+      setMinimum(m_fieldDef.minValue.toDouble());
+   }
+   if (m_fieldDef.maxValue != QString())
+   {
+      qDebug() << "maxValue set to: " << m_fieldDef.maxValue.toDouble();
+      setMaximum(m_fieldDef.maxValue.toDouble());
+   }
+   if (m_fieldDef.decimals != QString())
+   {
+      setDecimals(m_fieldDef.decimals.toInt());
+   }
+   if (m_fieldDef.stepValue != QString())
+   {
+      setSingleStep(m_fieldDef.stepValue.toDouble());
+   }
+   if (m_fieldDef.suffix != QString())
+   {
+      setSuffix(m_fieldDef.suffix);
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+QVariant DoubleSpinBox::getValue() const
+{
+   return(QVariant(value()));
+}
+
+QString DoubleSpinBox::getText() const
+{
+   return(text());
+}
+
+QString DoubleSpinBox::text() const
+{
+   QString s = cleanText();
+#ifndef QT4_DESIGNER_PLUGIN
+#endif
+   return(s);
+}
+
+void DoubleSpinBox::setValue(const QVariant &value)
+{
+   qDebug() << "value = " << value;
+   m_setValue = value;
+   QDoubleSpinBox::setValue(value.toDouble());
+}
+
+void DoubleSpinBox::setText(const QString &s)
+{
+#ifndef QT4_DESIGNER_PLUGIN
+   setValue(s.toInt());
+#endif
+}
+
+void DoubleSpinBox::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+   
+/***************************************************************/
+/***************************************************************/
+/***                   MoneyEdit Widget                      ***/
+/***************************************************************/
+/***************************************************************/
+void MoneyEdit::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+   qDebug() << "creating validator";
+   QRegExpValidator *v = new QRegExpValidator(QRegExp("\\$?[0-9,]*\\.?[0-9]{0,2}"), this);
+   setValidator(v);
+   setAlignment(Qt::AlignRight);
+   qDebug() << "Connecting editingFinished";
+   connect(this, SIGNAL(editingFinished()), this, SLOT(formatText()));
+   fflush(stdout); 
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+void MoneyEdit::formatText()
+{
+   QString txt = text();
+   qDebug() << "Enter: text =" << txt;
+   QLineEdit::setText(formatCurrency(txt));
+   qDebug() << "exit";
+}
+
+QVariant MoneyEdit::getValue() const
+{
+   return(QVariant(text()));
+}
+
+QString MoneyEdit::getText() const
+{
+   return(text());
+}
+
+bool MoneyEdit::hasChanges() const
+{
+   qDebug() << "Original value: " << m_setValue;
+   qDebug() << "Current value: " << getValue();
+   return(m_setValue.isValid() && getValue().toDouble() != m_setValue);
+}
+
+QString MoneyEdit::text() const
+{
+   QString s = QLineEdit::text();
+#ifndef QT4_DESIGNER_PLUGIN
+   QString exp;
+   QString cur = pConfig->value("Currency", "$").toString();
+   if ( cur == "$" ) 
+      cur = "\\$";
+   exp = "[" + QString(pLocale->groupSeparator()) + cur + "]";
+   s.replace(QRegExp(exp), "");
+
+//   s.replace(QRegExp("[\\$,]"), "");
+#endif
+   return(s);
+}
+
+void MoneyEdit::setValue(const QVariant &value)
+{
+   m_setValue = value;
+   setText(value.toString());
+}
+
+void MoneyEdit::setText(const QString &f) 
+{
+   QString str = f;
+
+   QString exp;
+   QString cur = pConfig->value("Currency", "$").toString();
+   if ( cur == "$" ) 
+      cur = "\\$";
+   exp = "[" + QString(pLocale->groupSeparator()) + cur + "]";
+   str.replace(QRegExp(exp), "");
+
+//   str.replace(QRegExp("[\\$,]"), "");
+   QLineEdit::setText(formatCurrency(str));
+}
+
+QString MoneyEdit::formatCurrency(const QString &money)
+{
+   QString s, s1, s2;
+   QString str = money;
+   str.remove("$");
+   str.remove(",");
+   double f = str.toDouble();
+
+#ifndef QT4_DESIGNER_PLUGIN
+   s = pLocale->toString(f, 'f', 2);
+   s = pConfig->value("Currency", "$").toString().replace("&nbsp;", " ") + s;
+
+#endif
+   return(s);
+}
+
+void MoneyEdit::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
 }
 
 /***************************************************************/
@@ -363,16 +1078,18 @@ void PhoneEdit::initialize(const QString &xmldef)
       m_phoneRE.setPattern(pConfig->value("PhoneParse", "(\\d{3})(\\d{3})(\\d{4})").toString());
    }
    m_phoneFormat = pConfig->value("PhoneFormat", "(%1) %2-%3" ).toString();
-   printf("PhoneEdit(): pattern: %s\n", qPrintable(m_phoneRE.pattern()));
-   printf("PhoneEdit(): format: %s\n", qPrintable(m_phoneFormat));
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
 }  
 
-QVariant PhoneEdit::getValue()
+QVariant PhoneEdit::getValue() const
 {
    return(QVariant(getText()));
 }
 
-QString PhoneEdit::getText()
+QString PhoneEdit::getText() const
 {
    return(text());
 }
@@ -383,9 +1100,6 @@ QString PhoneEdit::text() const
    QString rv;
 
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("PhoneEdit::text(): started with |%s|\n", (const char*)s.toLocal8Bit());
-   fflush(stdout);
-
    s.replace(QRegExp("[() -.]"), "");
    QRegularExpressionMatch match = m_phoneRE.match(s);
    for (int x = 1; x < match.lastCapturedIndex() + 1; x++)
@@ -401,28 +1115,23 @@ QString PhoneEdit::text() const
       rv = s;
    }
 //   s.replace(QRegExp("[\\$,]"), "");
-   printf("PhoneEdit::text(): returned |%s|\n", (const char*)s.toLocal8Bit());
-   fflush(stdout);
 #endif
    return(rv);
 }
 
 void PhoneEdit::setValue(const QVariant &value)
 {
+   m_setValue = value;
    setText(value.toString());
 }
 
 void PhoneEdit::setText(const QString &f) 
 {
    QString str = f;
-   printf("PhoneEdit::SetText(): enter\n");
-   fflush(stdout);
    str.replace(QRegExp("[() -.]"), "");
 
 //   str.replace(QRegExp("[\\$,]"), "");
    QLineEdit::setText(formatPhoneNumber(str));
-   printf("PhoneEdit::SetText(): set to |%s|\n", qPrintable(QLineEdit::text()));
-   fflush(stdout);
 }
 
 QString PhoneEdit::formatPhoneNumber(const QString &phone) const
@@ -430,7 +1139,6 @@ QString PhoneEdit::formatPhoneNumber(const QString &phone) const
    QString rv(m_phoneFormat);
    QString str(phone);
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("PhoneEdit::formatPhoneNumber(): str = %s\n", qPrintable(str));
    str.replace(QRegExp("[() -.]"), "");
    QRegularExpressionMatch match = m_phoneRE.match(str);
    if (match.lastCapturedIndex() > 0)
@@ -445,117 +1153,183 @@ QString PhoneEdit::formatPhoneNumber(const QString &phone) const
       rv = str;
    }
    fflush(stdout);
-   printf("PhoneEdit::formatCurrency(): exit(%s)\n", qPrintable(rv));
-   fflush(stdout);
 #endif
    return(rv);
 }
 
+void PhoneEdit::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+
+#ifndef NO_PHOTO_SELECT
 /***************************************************************/
 /***************************************************************/
-/***                   MoneyEdit Widget                      ***/
+/***                 PhotoEntry Widget                       ***/
 /***************************************************************/
 /***************************************************************/
-void MoneyEdit::initialize(const QString &xmldef)
-{ 
+void PhotoEntry::initialize(const QString &xmldef)
+{
    qDebug() << "Initialize, xmldef = " << xmldef;
    setFieldDefinition(xmldef);
-   qDebug() << "creating validator";
-   QRegExpValidator *v = new QRegExpValidator(QRegExp("\\$?[0-9,]*\\.?[0-9]{0,2}"), this);
-   setValidator(v);
-   setAlignment(Qt::AlignRight);
-   qDebug() << "Connecting editingFinished";
-   connect(this, SIGNAL(editingFinished()), this, SLOT(formatText()));
-   fflush(stdout); 
+   m_width = m_fieldDef.width.toInt();
+   m_height = m_fieldDef.height.toInt();
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
 }
 
-void MoneyEdit::formatText()
-{
-   QString txt = text();
-   qDebug() << "Enter: text =" << txt;
-   QLineEdit::setText(formatCurrency(txt));
-   qDebug() << "exit";
-}
-
-QVariant MoneyEdit::getValue()
-{
-   return(QVariant(text()));
-}
-
-QString MoneyEdit::getText()
+QString PhotoEntry::getText() const
 {
    return(text());
 }
 
-QString MoneyEdit::text() const
+QString PhotoEntry::text() const
 {
-   QString s = QLineEdit::text();
+   QString sum;
+   sum = QString(QCryptographicHash::hash(m_ba, QCryptographicHash::Md5).toHex().constData());
+   return(sum);
+}
+
+void PhotoEntry::setText(const QString &str)
+{
+   QLabel::setText(str);
+}
+
+bool PhotoEntry::match(QByteArray ba) const
+{
+   QString sum1;
+   QString sum2;
+   sum1 = QString(QCryptographicHash::hash(m_ba, QCryptographicHash::Md5).constData());
+   sum2 = QString(QCryptographicHash::hash(ba, QCryptographicHash::Md5).constData());
+   return(sum1 == sum2);
+}
+
+QVariant PhotoEntry::getValue()  const
+{
+   return(QVariant(m_ba));
+}
+
+void PhotoEntry::setValue(const QVariant &value)
+{
+   m_setValue = value;
+   m_ba = value.toByteArray();
+   if ( m_ba.size() == 0 ) 
+   {
+      QLabel::setText("<html>Double click</html>");
+   }
+   else 
+   {
+      showImage();
+   }
+   qDebug() << "md5sum: " << text();
+}
+ 
+void PhotoEntry::showImage()
+{
+   QPixmap pm;
+   if ( ! pm.loadFromData(m_ba))
+   {
+      qDebug() << "Error loading data";
+   }
+   pm = pm.scaledToWidth(width() - 5);
+
+   qDebug() << "showing image, m_width" << m_width << ", size: " << pm.size();
+   setPixmap(pm);
+}
+
+void PhotoEntry::mouseDoubleClickEvent(QMouseEvent*) 
+{
+   qDebug() << "starting dialog";
+   QcjLib::CameraCaptureDialog photoDlg(this);
+   bool good = photoDlg.exec();
+   if (good && photoDlg.hasImage())
+   {
+      m_ba = photoDlg.getImage("PNG", 5);
+      qDebug() << "image size: " << m_ba.size() << ", md5sum: " << text();
+      showImage();
+   }
+   qDebug() << "dialog exited, status: " << good;
+}
+
+void PhotoEntry::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+
+#endif
+
+/***************************************************************/
+/***************************************************************/
+/***                      SpinBox Widget                     ***/
+/***************************************************************/
+/***************************************************************/
+void SpinBox::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+   if (m_fieldDef.defvalue != QString())
+   {
+      m_setValue = m_fieldDef.defvalue;
+      setValue(m_fieldDef.defvalue.toInt());
+   }
+   if (m_fieldDef.minValue != QString())
+   {
+      setMinimum(m_fieldDef.minValue.toInt());
+   }
+   if (m_fieldDef.maxValue != QString())
+   {
+      setMaximum(m_fieldDef.maxValue.toInt());
+   }
+   if (m_fieldDef.stepValue != QString())
+   {
+      setSingleStep(m_fieldDef.stepValue.toInt());
+   }
+   if (m_fieldDef.suffix != QString())
+   {
+      setSuffix(m_fieldDef.suffix);
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+QVariant SpinBox::getValue() const
+{
+   return(QVariant(value()));
+}
+
+QString SpinBox::getText() const
+{
+   return(text());
+}
+
+QString SpinBox::text() const
+{
+   QString s = cleanText();
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("MoneyEdit::text(): started with |%s|\n", (const char*)s.toLocal8Bit());
-   fflush(stdout);
-
-   QString exp;
-   QString cur = pConfig->value("Currency", "$").toString();
-   if ( cur == "$" ) 
-      cur = "\\$";
-   exp = "[" + QString(pLocale->groupSeparator()) + cur + "]";
-   printf("MoneyEdit::SetText(): exp = |%s|\n", qPrintable(exp));
-   s.replace(QRegExp(exp), "");
-
-//   s.replace(QRegExp("[\\$,]"), "");
-   printf("MoneyEdit::text(): returned |%s|\n", (const char*)s.toLocal8Bit());
-   fflush(stdout);
 #endif
    return(s);
 }
 
-void MoneyEdit::setValue(const QVariant &value)
+void SpinBox::setValue(const QVariant &value)
 {
-   setText(value.toString());
+   m_setValue = value;
+   QSpinBox::setValue(value.toInt());
 }
 
-void MoneyEdit::setText(const QString &f) 
+void SpinBox::setText(const QString &s)
 {
-   QString str = f;
-   printf("MoneyEdit::SetText(): enter\n");
-   fflush(stdout);
-
-   QString exp;
-   QString cur = pConfig->value("Currency", "$").toString();
-   if ( cur == "$" ) 
-      cur = "\\$";
-   exp = "[" + QString(pLocale->groupSeparator()) + cur + "]";
-   printf("MoneyEdit::SetText(): exp = |%s|\n", qPrintable(exp));
-   str.replace(QRegExp(exp), "");
-
-//   str.replace(QRegExp("[\\$,]"), "");
-   QLineEdit::setText(formatCurrency(str));
-   printf("MoneyEdit::SetText(): started with |%s|\n", (const char*)formatCurrency(f).toLocal8Bit());
-   fflush(stdout);
-}
-
-QString MoneyEdit::formatCurrency(const QString &money)
-{
-   QString s, s1, s2;
-   QString str = money;
-   printf("MoneyEdit::formatCurrentcy(): Enter, str = |%s|\n", qPrintable(str));
-   fflush(stdout);
-   str.remove("$");
-   str.remove(",");
-   printf("MoneyEdit::formatCurrentcy(): converting |%s| to double\n", qPrintable(str));
-   double f = str.toDouble();
-
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("MoneyEdit::formatCurrentcy(): f = %15.2f\n", f);
-   fflush(stdout);
-   s = pLocale->toString(f, 'f', 2);
-   printf("MoneyEdit::formatCurrentcy(): s = %s\n", qPrintable(s));
-   s = pConfig->value("Currency", "$").toString().replace("&nbsp;", " ") + s;
-
-   printf("MoneyEdit::formatCurrency(): exit(%s)\n", qPrintable(s));
-   fflush(stdout);
+   setValue(s.toInt());
 #endif
-   return(s);
+}
+
+void SpinBox::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
 }
 
 /***************************************************************/
@@ -599,15 +1373,20 @@ void StringSelect::initialize(const QString &xmldef)
    {
       setCurrentIndex(0);
    }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
 }
 
-QVariant StringSelect::getValue()
+QVariant StringSelect::getValue() const
 {
    return(QVariant(currentText()));
 }
 
 void StringSelect::setValue(const QVariant &value)
 {
+   m_setValue = value;
    setText(value.toString());
 }
 
@@ -616,108 +1395,249 @@ void StringSelect::setText(const QString &s)
    int i = 0;
    QString str = s;
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("StringSelect::setText(): Enter, test = |%s|\n", qPrintable(s));
    if ( str == "" ) 
    {
       str = "<NULL>";
    }
    if ((i = findData(QVariant(str))) >= 0)
    {
-      printf("StringSelect::setText(): Found data, index = %d\n", i);
       setCurrentIndex(i);
    }
    else if ((i = findText(s)) >= 0) 
    {
 //      setSelected(i, true);
-      printf("StringSelect::setText(): Found text, index = %d\n", i);
       setCurrentIndex(i);
       setItemText(i, str);
    }
    else 
    {
-      printf("StringSelect::setText(): Adding new item\n");
       insertItem(0, str);
       setCurrentIndex(0);
       setItemText(0, str);
    }
-   printf("StringSelect::setText(): Exit()\n");
 #endif
 }
 
-QString StringSelect::getText()
+QString StringSelect::getText() const
 {
    return(text());
 }
 
+void StringSelect::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+
 /***************************************************************/
 /***************************************************************/
-/***                YesNoSelect Widget                       ***/
+/***                   TextBlockEdit Widget                  ***/
 /***************************************************************/
 /***************************************************************/
-void YesNoSelect::initialize(const QString &xmldef)
+void TextBlockEdit::initialize(const QString &xmldef)
 {
    qDebug() << "Initialize, xmldef = " << xmldef;
    setFieldDefinition(xmldef);
-
-   addItem("No");
-   addItem("Yes");
-   if (m_fieldDef.defvalue.trimmed().toUpper().startsWith("Y"))
+   qDebug() << "default value = " << m_fieldDef.defvalue;
+   if (m_fieldDef.defvalue != QString())
    {
-      setCurrentText("Yes");
+      setText(m_fieldDef.defvalue);
    }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+   qDebug() << "exit";
 }
 
-QVariant YesNoSelect::getValue()
+QVariant TextBlockEdit::getValue() const
 {
-   qDebug() << "value: " << text().at(0);
-   return(QVariant(text().at(0)));
+   return(QVariant(text()));
 }
 
-QString YesNoSelect::getText()
+QString TextBlockEdit::getText() const
 {
    return(text());
 }
 
-QString YesNoSelect::text() const
+QString TextBlockEdit::text() const
+{
+   QString s = toPlainText();
+#ifndef QT4_DESIGNER_PLUGIN
+#endif
+   return(s);
+}
+
+void TextBlockEdit::setValue(const QVariant &value)
+{
+   m_setValue = value;
+   setText(value.toString());
+}
+
+void TextBlockEdit::setText(const QString &s)
+{
+#ifndef QT4_DESIGNER_PLUGIN
+   setPlainText(s);
+#endif
+}
+
+void TextBlockEdit::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+
+/***************************************************************/
+/***************************************************************/
+/***                    TextLineEdit Widget                  ***/
+/***************************************************************/
+/***************************************************************/
+void TextLineEdit::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+   if (m_fieldDef.defvalue != QString())
+   {
+      setText(m_fieldDef.defvalue);
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+QVariant TextLineEdit::getValue() const
+{
+   return(QVariant(text()));
+}
+
+QString TextLineEdit::getText() const
+{
+   return(text());
+}
+
+QString TextLineEdit::text() const
+{
+   QString s = QLineEdit::text();
+#ifndef QT4_DESIGNER_PLUGIN
+#endif
+   return(s);
+}
+
+void TextLineEdit::setValue(const QVariant &value)
+{
+   m_setValue = value;
+   setText(value.toString());
+}
+
+void TextLineEdit::setText(const QString &s)
+{
+#ifndef QT4_DESIGNER_PLUGIN
+   QLineEdit::setText(s);
+#endif
+}
+
+void TextLineEdit::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+
+/***************************************************************/
+/***************************************************************/
+/***                    TimeEntry Widget                     ***/
+/***************************************************************/
+/***************************************************************/
+void TimeEntry::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+QVariant TimeEntry::getValue() const
+{
+   return(time());
+}
+
+void TimeEntry::setValue(const QVariant &value)
+{
+   m_setValue = value;
+   setTime(value.toTime());
+}
+
+QString TimeEntry::getText() const
+{
+   return(QString());
+}
+
+void TimeEntry::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
+}
+
+/***************************************************************/
+/***************************************************************/
+/***                TimestampEntry Widget                    ***/
+/***************************************************************/
+/***************************************************************/
+void TimestampEntry::initialize(const QString &xmldef)
+{
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
+}
+
+QVariant TimestampEntry::getValue() const
+{
+   return(QVariant(dateTime()));
+}
+
+QString TimestampEntry::getText() const
+{
+   return(text());
+}
+
+QString TimestampEntry::text() const
 {
    QString rv;
 #ifndef QT4_DESIGNER_PLUGIN
-   rv = currentText();
+   QString date_fmt = pConfig->value("DateFormat").toString();
+   date_fmt += " hh:mm:ss";
+   rv = dateTime().toString(date_fmt);
 #endif
    return(rv);
 }
 
-void YesNoSelect::setValue(const QVariant &value)
+void TimestampEntry::setValue(const QVariant &value)
 {
-   QString val_string;
-   if (value.type() == QVariant::Bool)
+   m_setValue = value;
+   if (value.type() == QVariant::Date ||
+       value.type() == QVariant::DateTime)
    {
-      if (value.toBool())
-      {
-         val_string = "Yes";
-      }
-      else
-      {
-         val_string = "No";
-      }
+      setDateTime(value.toDateTime());
    }
    else
    {
-      val_string = value.toString();
+      setText(value.toString());
    }
-   setText(val_string);
 }
 
-void YesNoSelect::setText(const QString &t)
+void TimestampEntry::setText(const QString &t)
 {
-   QString s;
 #ifndef QT4_DESIGNER_PLUGIN
-   if ( t.toUpper().startsWith("Y") ) 
-      s = "Yes";
-   else
-      s = "No";
-   setCurrentText(s);
+   QString date_fmt = pConfig->value("DateFormat").toString();
+   date_fmt += " hh:mm:ss";
+   setDate(QDate::fromString(t, date_fmt));
 #endif
+}
+
+void TimestampEntry::setDefault()
+{
+   setValue(QVariant(m_fieldDef.defvalue));
 }
 
 /***************************************************************/
@@ -736,14 +1656,18 @@ void TrueFalseSelect::initialize(const QString &xmldef)
    {
       setCurrentText("True");
    }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
 }
 
-QVariant TrueFalseSelect::getValue()
+QVariant TrueFalseSelect::getValue() const
 {
    return(QVariant(getText() == "Y"));
 }
 
-QString TrueFalseSelect::getText()
+QString TrueFalseSelect::getText() const
 {
    return(currentText());
 }
@@ -751,6 +1675,7 @@ QString TrueFalseSelect::getText()
 void TrueFalseSelect::setValue(const QVariant &value)
 {
    QString val_string;
+   m_setValue = value;
    if (value.type() == QVariant::Bool)
    {
       if (value.toBool())
@@ -781,506 +1706,103 @@ void TrueFalseSelect::setText(const QString &t)
 #endif
 }
 
-/***************************************************************/
-/***************************************************************/
-/***                CheckBox Widget                       ***/
-/***************************************************************/
-/***************************************************************/
-void CheckBox::initialize(const QString &xmldef)
+void TrueFalseSelect::setDefault()
 {
-   qDebug() << "Initialize, xmldef = " << xmldef
-            << ", text = " << text();
-   setFieldDefinition(xmldef);
+   setValue(QVariant(m_fieldDef.defvalue));
+}
 
+/***************************************************************/
+/***************************************************************/
+/***                YesNoSelect Widget                       ***/
+/***************************************************************/
+/***************************************************************/
+QVariant YesNoSelect::defaultValue() const
+{
    QString def_value = m_fieldDef.defvalue.trimmed().toUpper().at(0);
-   if (def_value == "C" || def_value == "Y")
+   if (def_value == "Y")
    {
-      setChecked(true);
+      return(QVariant("Y"));
    }
    else
    {
-      setChecked(false);
+      return(QVariant("N"));
    }
 }
 
-QVariant CheckBox::getValue()
+void YesNoSelect::initialize(const QString &xmldef)
 {
-   return(QVariant(getText()));
+   qDebug() << "Initialize, xmldef = " << xmldef;
+   setFieldDefinition(xmldef);
+
+   addItem("No");
+   addItem("Yes");
+   if (m_fieldDef.defvalue.trimmed().toUpper().startsWith("Y"))
+   {
+      m_setValue = "Y";
+      setText(m_setValue.toString());
+   }
+   if (m_fieldDef.ro)
+   {
+      setFocusPolicy(Qt::NoFocus);
+   }
 }
 
-QString CheckBox::getText()
+QVariant YesNoSelect::getValue() const
+{
+   qDebug() << "value: " << text().at(0);
+   return(QVariant(text().at(0)));
+}
+
+QString YesNoSelect::getText() const
+{
+   return(text());
+}
+
+QString YesNoSelect::text() const
 {
    QString rv;
 #ifndef QT4_DESIGNER_PLUGIN
-   rv = isChecked() ? "Y" : "N";
+   rv = currentText();
 #endif
    return(rv);
 }
 
-void CheckBox::setText(const QString &str)
+void YesNoSelect::setValue(const QVariant &value)
 {
-   QCheckBox::setText(str);
-}
-
-
-void CheckBox::setValue(const QVariant &value)
-{
-   QString str_value = value.toString().trimmed().toUpper().at(0);
-   qDebug() << "str_value = " << str_value 
-            << "checked: " << (str_value == "C" || str_value == "Y");
-   setChecked(str_value == "C" || str_value == "Y");
-}
-
-/***************************************************************/
-/***************************************************************/
-/***                    TimeEntry Widget                     ***/
-/***************************************************************/
-/***************************************************************/
-void TimeEntry::initialize(const QString &xmldef)
-{
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-}
-
-QVariant TimeEntry::getValue()
-{
-   return(time());
-}
-
-void TimeEntry::setValue(const QVariant &value)
-{
-   setTime(value.toTime());
-}
-
-QString TimeEntry::getText()
-{
-   return(QString());
-}
-
-/***************************************************************/
-/***************************************************************/
-/***                 DateEntry Widget                        ***/
-/***************************************************************/
-/***************************************************************/
-void DateEntry::initialize(const QString &xmldef)
-{
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-}
-
-QVariant DateEntry::getValue()
-{
-   return(QVariant(date()));
-}
-
-QString DateEntry::getText()
-{
-   return(QString());
-}
-
-void DateEntry::setValue(const QVariant &value)
-{
-   if (value.type() == QVariant::Date ||
-       value.type() == QVariant::DateTime)
+   QString val_string;
+   m_setValue = value;
+   if (value.type() == QVariant::Bool)
    {
-      setDate(value.toDate());
+      if (value.toBool())
+      {
+         val_string = "Yes";
+      }
+      else
+      {
+         val_string = "No";
+      }
    }
    else
    {
-      QString date_fmt = pConfig->value("DateFormat").toString();
-      setDate(QDate::fromString(value.toString(), date_fmt));
+      val_string = value.toString();
    }
+   setText(val_string);
 }
 
-void DateEntry::setText(const QString &t)
+void YesNoSelect::setText(const QString &t)
 {
-   printf("DateEntry::set(): Entry  |%s|\n", (const char*)t.toLocal8Bit());
+   QString s;
 #ifndef QT4_DESIGNER_PLUGIN
-   QString date_fmt = pConfig->value("DateFormat").toString();
-   setDate(QDate::fromString(t, date_fmt));
-#endif
-}
-
-/***************************************************************/
-/***************************************************************/
-/***                TimestampEntry Widget                    ***/
-/***************************************************************/
-/***************************************************************/
-void TimestampEntry::initialize(const QString &xmldef)
-{
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-}
-
-QVariant TimestampEntry::getValue()
-{
-   return(QVariant(dateTime()));
-}
-
-QString TimestampEntry::getText()
-{
-   return(text());
-}
-
-QString TimestampEntry::text() const
-{
-   QString rv;
-#ifndef QT4_DESIGNER_PLUGIN
-   printf("TimestampEntry::get(): Enter\n");
-   QString date_fmt = pConfig->value("DateFormat").toString();
-   date_fmt += " hh:mm:ss";
-   rv = dateTime().toString(date_fmt);
-   printf("TimestampEntry::get(): Exit |%s|\n", (const char*)rv.toLocal8Bit());
-#endif
-   return(rv);
-}
-
-void TimestampEntry::setValue(const QVariant &value)
-{
-   if (value.type() == QVariant::Date ||
-       value.type() == QVariant::DateTime)
-   {
-      setDateTime(value.toDateTime());
-   }
+   if ( t.toUpper().startsWith("Y") ) 
+      s = "Yes";
    else
-   {
-      setText(value.toString());
-   }
-}
-
-void TimestampEntry::setText(const QString &t)
-{
-   printf("TimestampEntry::set(): Entry  |%s|\n", (const char*)t.toLocal8Bit());
-#ifndef QT4_DESIGNER_PLUGIN
-   QString date_fmt = pConfig->value("DateFormat").toString();
-   date_fmt += " hh:mm:ss";
-   setDate(QDate::fromString(t, date_fmt));
-   printf("TimestampEntry::setText(): Exit\n");
+      s = "No";
+   setCurrentText(s);
 #endif
 }
 
-/***************************************************************/
-/***************************************************************/
-/***                   TextBlockEdit Widget                  ***/
-/***************************************************************/
-/***************************************************************/
-void TextBlockEdit::initialize(const QString &xmldef)
+void YesNoSelect::setDefault()
 {
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-   qDebug() << "default value = " << m_fieldDef.defvalue;
-   if (m_fieldDef.defvalue != QString())
-   {
-      setText(m_fieldDef.defvalue);
-   }
-   qDebug() << "exit";
+   setValue(QVariant(m_fieldDef.defvalue));
 }
 
-QVariant TextBlockEdit::getValue()
-{
-   return(QVariant(text()));
-}
-
-QString TextBlockEdit::getText()
-{
-   return(text());
-}
-
-QString TextBlockEdit::text() const
-{
-   printf("TextBlockEdit::text(): Enter\n");
-   QString s = toPlainText();
-#ifndef QT4_DESIGNER_PLUGIN
-#endif
-   printf("TextBlockEdit::text(): exit with |%s|\n", (const char*)s.toLocal8Bit());
-   return(s);
-}
-
-void TextBlockEdit::setValue(const QVariant &value)
-{
-   setText(value.toString());
-}
-
-void TextBlockEdit::setText(const QString &s)
-{
-#ifndef QT4_DESIGNER_PLUGIN
-   printf("TextBlockEdit::text(): Enter- setting text |%s|\n", (const char*)s.toLocal8Bit());
-   setPlainText(s);
-   printf("TextBlockEdit::text(): exit\n");
-#endif
-}
-
-
-/***************************************************************/
-/***************************************************************/
-/***                   TextLineEdit Widget                  ***/
-/***************************************************************/
-/***************************************************************/
-void TextLineEdit::initialize(const QString &xmldef)
-{
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-   if (m_fieldDef.defvalue != QString())
-   {
-      setText(m_fieldDef.defvalue);
-   }
-}
-
-QVariant TextLineEdit::getValue()
-{
-   return(QVariant(text()));
-}
-
-QString TextLineEdit::getText()
-{
-   return(text());
-}
-
-QString TextLineEdit::text() const
-{
-   printf("TextLineEdit::text(): Enter\n");
-   QString s = QLineEdit::text();
-#ifndef QT4_DESIGNER_PLUGIN
-#endif
-   printf("TextLineEdit::text(): exit with |%s|\n", (const char*)s.toLocal8Bit());
-   return(s);
-}
-
-void TextLineEdit::setValue(const QVariant &value)
-{
-   setText(value.toString());
-}
-
-void TextLineEdit::setText(const QString &s)
-{
-#ifndef QT4_DESIGNER_PLUGIN
-   printf("TextLineEdit::text(): Enter- setting text |%s|\n", (const char*)s.toLocal8Bit());
-   QLineEdit::setText(s);
-   printf("TextLineEdit::text(): exit\n");
-#endif
-}
-
-/***************************************************************/
-/***************************************************************/
-/***                      SpinBox Widget                     ***/
-/***************************************************************/
-/***************************************************************/
-void SpinBox::initialize(const QString &xmldef)
-{
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-   if (m_fieldDef.defvalue != QString())
-   {
-      setValue(m_fieldDef.defvalue.toInt());
-   }
-   if (m_fieldDef.minValue != QString())
-   {
-      setMinimum(m_fieldDef.minValue.toInt());
-   }
-   if (m_fieldDef.maxValue != QString())
-   {
-      setMaximum(m_fieldDef.maxValue.toInt());
-   }
-   if (m_fieldDef.stepValue != QString())
-   {
-      setSingleStep(m_fieldDef.stepValue.toInt());
-   }
-   if (m_fieldDef.suffix != QString())
-   {
-      setSuffix(m_fieldDef.suffix);
-   }
-}
-
-QVariant SpinBox::getValue()
-{
-   return(QVariant(value()));
-}
-
-QString SpinBox::getText()
-{
-   return(text());
-}
-
-QString SpinBox::text() const
-{
-   printf("SpinBox::text(): Enter\n");
-   QString s = cleanText();
-#ifndef QT4_DESIGNER_PLUGIN
-   printf("SpinBox::text(): exit with |%s|\n", (const char*)s.toLocal8Bit());
-#endif
-   return(s);
-}
-
-void SpinBox::setValue(const QVariant &value)
-{
-   setValue(value.toInt());
-}
-
-void SpinBox::setText(const QString &s)
-{
-#ifndef QT4_DESIGNER_PLUGIN
-   printf("SpinBox::text(): Enter- setting text |%s|\n", (const char*)s.toLocal8Bit());
-   setValue(s.toInt());
-   printf("SpinBox::text(): exit\n");
-#endif
-}
-
-/***************************************************************/
-/***************************************************************/
-/***                   DoubleSpinBox Widget                  ***/
-/***************************************************************/
-/***************************************************************/
-void DoubleSpinBox::initialize(const QString &xmldef)
-{
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-   if (m_fieldDef.defvalue != QString())
-   {
-      setValue(m_fieldDef.defvalue.toDouble());
-   }
-   if (m_fieldDef.minValue != QString())
-   {
-      setMinimum(m_fieldDef.minValue.toInt());
-   }
-   if (m_fieldDef.maxValue != QString())
-   {
-      setMaximum(m_fieldDef.maxValue.toInt());
-   }
-   if (m_fieldDef.decimals != QString())
-   {
-      setDecimals(m_fieldDef.decimals.toInt());
-   }
-   if (m_fieldDef.stepValue != QString())
-   {
-      setSingleStep(m_fieldDef.stepValue.toDouble());
-   }
-   if (m_fieldDef.suffix != QString())
-   {
-      setSuffix(m_fieldDef.suffix);
-   }
-}
-
-QVariant DoubleSpinBox::getValue()
-{
-   return(QVariant(value()));
-}
-
-QString DoubleSpinBox::getText()
-{
-   return(text());
-}
-
-QString DoubleSpinBox::text() const
-{
-   printf("DoubleSpinBox::text(): Enter\n");
-   QString s = cleanText();
-#ifndef QT4_DESIGNER_PLUGIN
-   printf("DoubleSpinBox::text(): exit with |%s|\n", (const char*)s.toLocal8Bit());
-#endif
-   return(s);
-}
-
-void DoubleSpinBox::setValue(const QVariant &value)
-{
-   setValue(value.toInt());
-}
-
-void DoubleSpinBox::setText(const QString &s)
-{
-#ifndef QT4_DESIGNER_PLUGIN
-   printf("DoubleSpinBox::text(): Enter- setting text |%s|\n", (const char*)s.toLocal8Bit());
-   setValue(s.toInt());
-   printf("DoubleSpinBox::text(): exit\n");
-#endif
-}
-
-#ifndef NO_PHOTO_SELECT
-/***************************************************************/
-/***************************************************************/
-/***                 PhotoEntry Widget                       ***/
-/***************************************************************/
-/***************************************************************/
-void PhotoEntry::initialize(const QString &xmldef)
-{
-   qDebug() << "Initialize, xmldef = " << xmldef;
-   setFieldDefinition(xmldef);
-   m_width = m_fieldDef.width.toInt();
-   m_height = m_fieldDef.height.toInt();
-}
-
-QString PhotoEntry::getText()
-{
-   return(text());
-}
-
-QString PhotoEntry::text() const
-{
-   QString sum;
-   sum = QString(QCryptographicHash::hash(m_ba, QCryptographicHash::Md5).toHex().constData());
-   return(sum);
-}
-
-void PhotoEntry::setText(const QString &str)
-{
-   QLabel::setText(str);
-}
-
-bool PhotoEntry::match(QByteArray ba) const
-{
-   QString sum1;
-   QString sum2;
-   sum1 = QString(QCryptographicHash::hash(m_ba, QCryptographicHash::Md5).constData());
-   sum2 = QString(QCryptographicHash::hash(ba, QCryptographicHash::Md5).constData());
-   return(sum1 == sum2);
-}
-
-QVariant PhotoEntry::getValue() 
-{
-   return(QVariant(m_ba));
-}
-
-void PhotoEntry::setValue(const QVariant &value)
-{
-   printf("PhotoEntry::set(): Enter, pic size = %d\n", m_ba.size());
-   fflush(stdout);
-   m_ba = value.toByteArray();
-   if ( m_ba.size() == 0 ) 
-   {
-      QLabel::setText("<html>Double click</html>");
-   }
-   else 
-   {
-      showImage();
-   }
-   qDebug() << "md5sum: " << text();
-   printf("PhotoEntry::set(): Exit\n");
-   fflush(stdout);
-}
- 
-void PhotoEntry::showImage()
-{
-   QPixmap pm;
-   if ( ! pm.loadFromData(m_ba))
-   {
-      qDebug() << "Error loading data";
-   }
-   pm = pm.scaledToWidth(width() - 5);
-
-   qDebug() << "showing image, m_width" << m_width << ", size: " << pm.size();
-   setPixmap(pm);
-}
-
-void PhotoEntry::mouseDoubleClickEvent(QMouseEvent*) 
-{
-   qDebug() << "starting dialog";
-   QcjLib::CameraCaptureDialog photoDlg(this);
-   bool good = photoDlg.exec();
-   if (good && photoDlg.hasImage())
-   {
-      m_ba = photoDlg.getImage("PNG", 5);
-      qDebug() << "image size: " << m_ba.size() << ", md5sum: " << text();
-      showImage();
-   }
-   qDebug() << "dialog exited, status: " << good;
-}
-#endif

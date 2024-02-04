@@ -32,6 +32,7 @@
 #ifndef WIDGETUTILS_H
 #define WIDGETUTILS_H
 
+#include "../QcjData/QcjDataHelpers.h"
 #include <QSqlField>
 #include <QString>
 #include <QWidget>
@@ -46,6 +47,8 @@ namespace WidgetUtils
    QSqlField createField(QWidget *wdt, QString field_name);
    bool isA(QObject *obj, const char *type);
    bool isAObject(QObject *obj, const char *type);
+   QString objectType(QObject *obj);
+   void fieldDefToString(const QcjDataFieldDef &field_def);
 };
 
 #endif
