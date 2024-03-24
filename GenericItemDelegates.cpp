@@ -35,7 +35,47 @@ using namespace QcjLib;
 const QString GenericIntDelegate::LOG("QcjLib_generic_delegate");
 static LogBuilder mylog(GenericIntDelegate::LOG, 1, "QcjLib Geniric Item Delegate");
 
-GenericIntDelegate::GenericIntDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+QStyledItemDelegate *QcjLib::genericItemDelegateFactory(const QcjDataFields &field, QObject *parent)
+{
+   QStyledItemDelegate *rv = nullptr;
+
+   QString fieldType = field.fieldType;
+   if ( ! field.ro)
+   {
+      if (fieldType == "integer")
+      {
+         rv = new GenericIntDelegate(field, parent);
+      }
+      else if (fieldType == "double")
+      {
+         rv = new GenericDoubleDelegate(field, parent);
+      }
+      else if (fieldType == "money")
+      {
+         rv = new GenericMoneyDelegate(field, parent);
+      }
+      else if (fieldType == "strsel")
+      {
+         rv = new GenericStringSelectDelegate(field, parent);
+      }
+      else if (fieldType == "yesno")
+      {
+         rv = new GenericYesNoDelegate(field, parent);
+      }
+      else if (fieldType == "phone")
+      {
+         rv = new GenericPhoneDelegate(field, parent);
+      }
+   }
+   else
+   {
+      qDebug() << "Read only field!";
+      rv = new GenericReadOnlyDelegate(field, parent);
+   }
+   return(rv);
+}
+
+GenericIntDelegate::GenericIntDelegate(const QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
 }
@@ -79,7 +119,7 @@ void GenericIntDelegate::setModelData(QWidget *editor, QAbstractItemModel *model
 
 const QString GenericDoubleDelegate::LOG("QcjLib_generic_delegate");
 
-GenericDoubleDelegate::GenericDoubleDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+GenericDoubleDelegate::GenericDoubleDelegate(const QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
 }
@@ -124,14 +164,13 @@ void GenericDoubleDelegate::setModelData(QWidget *editor, QAbstractItemModel *mo
 
 const QString GenericReadOnlyDelegate::LOG("QcjLib_generic_delegate");
 
-GenericReadOnlyDelegate::GenericReadOnlyDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+GenericReadOnlyDelegate::GenericReadOnlyDelegate(const QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
 }
 
 QWidget *GenericReadOnlyDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const
 {
-   QLabel *templ = dynamic_cast<QLabel*>(m_fieldData.widget);
    QLabel *editor = new QLabel(parent);
    qDebug(*log(LOG, 1)) << "editor =" << (unsigned long)editor;
    connect(editor, SIGNAL(editingFinished()), this, SLOT(closeCommitEditor()));
@@ -161,7 +200,7 @@ void GenericReadOnlyDelegate::setModelData(QWidget *editor, QAbstractItemModel *
 /****************************************************************************/
 /****************************************************************************/
 
-GenericMoneyDelegate::GenericMoneyDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+GenericMoneyDelegate::GenericMoneyDelegate(const QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
 }
@@ -198,7 +237,7 @@ void GenericMoneyDelegate::setModelData(QWidget *editor, QAbstractItemModel *mod
 /****************************************************************************/
 /****************************************************************************/
 
-GenericStringSelectDelegate::GenericStringSelectDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+GenericStringSelectDelegate::GenericStringSelectDelegate(const QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
 }
@@ -240,7 +279,7 @@ void GenericStringSelectDelegate::setModelData(QWidget *editor, QAbstractItemMod
 /****************************************************************************/
 /****************************************************************************/
 
-GenericYesNoDelegate::GenericYesNoDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+GenericYesNoDelegate::GenericYesNoDelegate(const QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
 }
@@ -251,7 +290,6 @@ QWidget *GenericYesNoDelegate::createEditor(QWidget *parent, const QStyleOptionV
    QcjYesNoSelect *templ = dynamic_cast<QcjYesNoSelect*>(m_fieldData.widget);
    QcjYesNoSelect *editor = new QcjYesNoSelect(parent);
    editor->setText(index.model()->data(index, Qt::EditRole).toString());
-   int itmCount = templ->count();
    editor->setEditable(templ->isEditable());
    connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()));
    return(editor);
@@ -280,14 +318,13 @@ void GenericYesNoDelegate::setModelData(QWidget *editor, QAbstractItemModel *mod
 /****************************************************************************/
 /****************************************************************************/
 
-GenericPhoneDelegate::GenericPhoneDelegate(QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
+GenericPhoneDelegate::GenericPhoneDelegate(const QcjDataFields &fieldData, QObject *parent) : QStyledItemDelegate(parent)
 {
    m_fieldData = fieldData;
 }
 
 QWidget *GenericPhoneDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const
 {
-   QcjPhoneEdit *templ = dynamic_cast<QcjPhoneEdit*>(m_fieldData.widget);
    QcjPhoneEdit *editor = new QcjPhoneEdit(parent);
    connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()));
    return(editor);

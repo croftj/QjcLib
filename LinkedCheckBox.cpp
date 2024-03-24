@@ -34,6 +34,7 @@ QcjLib::LinkedCheckBox::LinkedCheckBox(const QString &text, QcjLib::LinkedCheckB
    m_next(nullptr)
 {
    qDebug() << "New check box: " << text;
+   connect(this, SIGNAL(clicked(bool)), this, SLOT(haveClicked()));
    show();
 }
 
@@ -51,3 +52,7 @@ void QcjLib::LinkedCheckBox::focusOutEvent(QFocusEvent *evt)
    qDebug() << __FUNCTION__ << "Have event: " << evt->type();
 }
 
+void QcjLib::LinkedCheckBox::haveClicked()
+{
+   qDebug() << QString("button %1 clicked").arg(text());
+}

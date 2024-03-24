@@ -44,7 +44,7 @@ namespace QcjLib
       ButtonBoxFrame(QWidget *parent = nullptr);
       ~ButtonBoxFrame() {};
 
-      void setDatabase(const QString &item);
+      void setDatabase(const QStringList &items);
       QStringList checkedButtons();
       QStringList buttonList();
       void checkButtons(const QStringList &names);

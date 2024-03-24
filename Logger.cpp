@@ -29,6 +29,7 @@
 # include "LogRegistery.h"
 
 # include  <QFile>
+# include  <QTime>
 
 # include  <stdlib.h>
 # include  <stdlib.h>
@@ -56,7 +57,8 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
 
    if ( QcjLib::LogRegistery::instance()->LogLevel(category) >= level ) 
    {
-      buf << category << ":" << level << "::" ;
+//      buf << category << ":" << level << "::" ;
+      buf << QTime::currentTime().toString("hh:mm:ss") << ": ";
       switch (type)
       {
          case QtDebugMsg:
@@ -72,11 +74,11 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
             break;
 
          case QtFatalMsg:
-            buf << "FATAL: " << msg << endl;
+            buf << "FATAL: " << msg << Qt::endl;
             QcjLib::Logger::instance()->LogMessage(msg_buf);
             abort();
       }
-      buf << context.function << ": " << msg << endl;
+      buf << context.function << ": " << msg << Qt::endl;
       QcjLib::Logger::instance()->LogMessage(msg_buf);
    }
 }

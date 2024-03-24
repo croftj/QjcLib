@@ -29,6 +29,7 @@
 #define QCJLIB_DATA_WIDGETS_H
 
 #include "QcjData/QcjDataHelpers.h"
+#include "QcjLib/CancelableFrame.h"
 #include "QcjLib/Types.h"
 
 #include <qcombobox.h>
@@ -49,7 +50,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QWidget>
-#include <QFrame>
 #include <QCheckBox>
 #include <QDateEdit>
 #include <QSpinBox>
@@ -81,20 +81,23 @@ namespace QcjLib
    class TrueFalseSelect;
    class YesNoSelect;
 
-   class DataForm : public QFrame
+   class DataForm : public CancelableFrame
    {
       Q_OBJECT
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
       DataForm(QWidget *parent = nullptr);
+      bool cancel();
       void setXmldef(const QString &name)
       {
+         qDebug() << "m_xmldef: " << m_xmldef;
          m_xmldef = name;
       };
 
-      QString getXmldef()
+      QString readXmldef()
       {
+         qDebug() << "m_xmldef: " << m_xmldef;
          return(m_xmldef);
       };
 
@@ -115,22 +118,30 @@ namespace QcjLib
    class AutoDataForm : public DataForm
    {
       Q_OBJECT
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    signals:
       void updated();
       
    public:
       AutoDataForm(QWidget *parent = nullptr);
+      bool cancel();
+      void setReadOnly(bool flag);
       void clearForm();
       void deleteRecord();
-      void insertRecord();
-      void insertRecord(const QcjLib::VariantMap &predefined_fields);
+      QVariant getFieldValue(const QString &name) const;
+      void setFieldValue(const QString &name, const QVariant &value);
+      QString getIndexFilter();
+      QVariant getIndexValue() const;
+      QSqlRecord insertRecord();
+      QSqlRecord insertRecord(const QcjLib::VariantMap &predefined_fields);
       QString makeFilter();
       void setDatabase();
+      QSqlRecord* record();
       void updateRecord();
 
    public slots:
+      void refresh();
       void refresh(QSqlRecord *record);
       void refresh(QSqlRecord *record, bool no_transaction);
       void commitTransaction(bool emit_updated = true);
@@ -155,15 +166,21 @@ namespace QcjLib
    class DataWidget
    {
    public:
+      DataWidget()
+      {
+//         qDebug() << "enter";
+      }
       virtual void      initialize(const QString &xmldef) = 0;
       virtual QVariant  getValue() const = 0;
       virtual void      setValue(const QVariant &value) = 0;
       virtual QString   getText() const = 0;
       virtual bool      hasChanges() const;
       virtual void      setText(const QString &str);
+      virtual void      setReadOnly(bool flag) = 0;
       virtual void      setSizePolicy(QSizePolicy policy) = 0;
       virtual void      setDefault() = 0;
       virtual QWidget*  widget() = 0;      
+      virtual void      setFocus(Qt::FocusReason reason) = 0;
 
       QVariant          defaultValue() const;
       static DataWidget *widgetFactory(const QcjDataFieldDef &field_def,
@@ -173,6 +190,7 @@ namespace QcjLib
       void setFieldName(const QString &name)
       {
          m_fieldName = name;
+         qDebug() << "m_fieldName = " << m_fieldName;
       };
 
       QString getFieldName() const
@@ -185,7 +203,7 @@ namespace QcjLib
          m_xmldef = name;
       };
 
-      QString getXmldef() const
+      QString readXmldef() const
       {
          return(m_xmldef);
       };
@@ -231,14 +249,13 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
       CheckBox(QWidget * parent = 0) : QCheckBox(parent), DataWidget()
       {
          m_setValue = "N";
-         qDebug() << objectName() << "::" << getFieldName()
-                  << "m_setValue = " << m_setValue;
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
       }
       CheckBox(const QString &text, QWidget * parent = 0) : QCheckBox(text, parent), DataWidget() { };
 
@@ -249,9 +266,11 @@ namespace QcjLib
       void initialize(const QString &xmldef);
       QString getText() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -264,10 +283,13 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      DateEntry(QWidget * parent = 0) : QDateEdit(parent), DataWidget() { };
+      DateEntry(QWidget * parent = 0) : QDateEdit(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -276,9 +298,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -291,10 +315,13 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      DoubleSpinBox(QWidget * parent = 0) : QDoubleSpinBox(parent), DataWidget() { };
+      DoubleSpinBox(QWidget * parent = 0) : QDoubleSpinBox(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -303,9 +330,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -318,10 +347,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      MoneyEdit(QWidget * parent = 0) : QLineEdit(parent), DataWidget() { };
+      MoneyEdit(QWidget * parent = 0) : QLineEdit(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -331,6 +364,7 @@ namespace QcjLib
       bool hasChanges() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
@@ -338,6 +372,7 @@ namespace QcjLib
    protected:
       void formatText();
       QString formatCurrency(const QString &str);
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -350,10 +385,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      PhoneEdit(QWidget * parent = 0) : QLineEdit(parent), DataWidget() { };
+      PhoneEdit(QWidget * parent = 0) : QLineEdit(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -362,6 +401,7 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
@@ -372,6 +412,7 @@ namespace QcjLib
    private:
       QRegularExpression   m_phoneRE;
       QString              m_phoneFormat;
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -385,10 +426,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      PhotoEntry(QWidget * parent = 0) : QLabel(parent), DataWidget() { };
+      PhotoEntry(QWidget * parent = 0) : QLabel(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -396,6 +441,7 @@ namespace QcjLib
 
       QString getText() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       QString text() const;
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
@@ -414,6 +460,7 @@ namespace QcjLib
       QByteArray  m_ba;
       int         m_height;
       int         m_width;
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 #endif
 
@@ -427,10 +474,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      SpinBox(QWidget * parent = 0) : QSpinBox(parent), DataWidget() { };
+      SpinBox(QWidget * parent = 0) : QSpinBox(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -439,9 +490,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -454,10 +507,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      StringSelect(QWidget * parent = 0) : QComboBox(parent), DataWidget() { };
+      StringSelect(QWidget * parent = 0) : QComboBox(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -466,9 +523,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void    setText(const QString &);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -481,10 +540,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      TextBlockEdit(QWidget * parent = 0) : QTextEdit(parent), DataWidget() { };
+      TextBlockEdit(QWidget * parent = 0) : QTextEdit(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -493,9 +556,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -508,10 +573,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      TextLineEdit(QWidget * parent = 0) : QLineEdit(parent), DataWidget() { };
+      TextLineEdit(QWidget * parent = 0) : QLineEdit(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -520,9 +589,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -535,20 +606,26 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      TimeEntry(QWidget * parent = 0) : QTimeEdit(parent), DataWidget() { };
+      TimeEntry(QWidget * parent = 0) : QTimeEdit(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
       void initialize(const QString &xmldef);
 
+      void setReadOnly(bool flag);
       QString getText() const;
       QString text() const;
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -561,10 +638,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      TimestampEntry(QWidget * parent = 0) : QDateTimeEdit(parent), DataWidget() { };
+      TimestampEntry(QWidget * parent = 0) : QDateTimeEdit(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -573,9 +654,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &str);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -588,10 +671,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
-      TrueFalseSelect(QWidget * parent = 0) : QComboBox(parent), DataWidget() { };
+      TrueFalseSelect(QWidget * parent = 0) : QComboBox(parent), DataWidget()
+      {
+         qDebug().noquote() << objectName(); // << "::" << getFieldName();
+      };
+
 
       QVariant getValue() const;
       void setValue(const QVariant &value);
@@ -601,8 +688,10 @@ namespace QcjLib
       QString text() const;
       void setText(const QString &str);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
+      void setReadOnly(bool flag);
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 
    /***************************************************************/
@@ -615,15 +704,14 @@ namespace QcjLib
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
-      Q_PROPERTY( QString xml_definition WRITE setXmldef READ getXmldef );
+      Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
    public:
       YesNoSelect(QWidget * parent = 0) : QComboBox(parent)
                                         , DataWidget()
       {
          m_setValue = "N";
-         qDebug() << objectName() << "::" << getFieldName()
-                  << "m_setValue = " << m_setValue;
+         qDebug() << objectName(); // << "::" << getFieldName();
       }
 
       QVariant defaultValue() const;
@@ -634,9 +722,11 @@ namespace QcjLib
       QString getText() const;
       QString text() const;
       void setText(const QString &);
+      void setReadOnly(bool flag);
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
       QWidget*  widget() { return(this); }
+      void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 }
 

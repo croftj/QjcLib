@@ -67,44 +67,13 @@ void TableView::setFields(int row)
          QString fieldType = field.fieldType;
          if ( ! field.ro)
          {
-            if (fieldType == "integer")
+            QStyledItemDelegate *delegate = QcjLib::genericItemDelegateFactory(field, this);
+            setItemDelegateForColumn(column, delegate);
+            if (fieldType == "money")
             {
-               GenericIntDelegate *delegate = new GenericIntDelegate(field, this);
-               setItemDelegateForColumn(column, delegate);
-            }
-            else if (fieldType == "double")
-            {
-               GenericDoubleDelegate *delegate = new GenericDoubleDelegate(field, this);
-               setItemDelegateForColumn(column, delegate);
-            }
-            else if (fieldType == "money")
-            {
-               GenericMoneyDelegate *delegate = new GenericMoneyDelegate(field, this);
-               setItemDelegateForColumn(column, delegate);
                model_ptr->setData(model_ptr->index(row, column), 
                                  QVariant(Qt::AlignRight), Qt::TextAlignmentRole);
             }
-            else if (fieldType == "strsel")
-            {
-               GenericStringSelectDelegate *delegate = new GenericStringSelectDelegate(field, this);
-               setItemDelegateForColumn(column, delegate);
-            }
-            else if (fieldType == "yesno")
-            {
-               GenericYesNoDelegate *delegate = new GenericYesNoDelegate(field, this);
-               setItemDelegateForColumn(column, delegate);
-            }
-            else if (fieldType == "phone")
-            {
-               GenericPhoneDelegate *delegate = new GenericPhoneDelegate(field, this);
-               setItemDelegateForColumn(column, delegate);
-            }
-         }
-         else
-         {
-            qDebug() << "Read only field!";
-            GenericReadOnlyDelegate *delegate = new GenericReadOnlyDelegate(field, this);
-            setItemDelegateForColumn(column, delegate);
          }
       }
       if (model_ptr != nullptr && field.dataName != "--ENDOFFIELDS--")
@@ -125,7 +94,6 @@ void TableView::setFields(int row)
          }
          qDebug(*log(LOG, 1)) << "Setting default value for " << field.label << ": " << defaultValue;
          model_ptr->SetValue(row, field.label, defaultValue);
-
       }
       column++;
    }
@@ -148,21 +116,21 @@ bool TableView::event(QEvent *evt)
 {
    if (true && evt->type() == QEvent::FocusIn)
    {
-      qDebug() << __FUNCTION__ << "Have event: " << evt->type();
+//      qDebug() << __FUNCTION__ << "Have event: " << evt->type();
       if ( currentIndex().isValid())
       {
          edit(currentIndex());
       }
       else
       {
-         qDebug() << "model ptr = " << (long int)model();
+//         qDebug() << "model ptr = " << (long int)model();
          if (model() != nullptr)
             edit(model()->index(0, 0));
       }
    }
    else if (true && evt->type() != QEvent::Timer)
    {
-      qDebug() << __FUNCTION__ << "Have event: " << evt->type();
+//      qDebug() << __FUNCTION__ << "Have event: " << evt->type();
    }
    return(QTableView::event(evt));
 }

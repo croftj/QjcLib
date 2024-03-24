@@ -107,9 +107,9 @@ namespace QcjLib
          qDebug(*log(LOG, 1)) << "TableView::currentChanged(): Exit";
       };
 
-      virtual bool focusInEvent(QEvent *evt);
-      virtual bool event(QEvent *evt) override;
-      virtual void keyPressEvent(QKeyEvent *evt);
+      bool focusInEvent(QEvent *evt);
+      bool event(QEvent *evt) override;
+      void keyPressEvent(QKeyEvent *evt);
 
    protected slots:
       void SlotSectionClicked(int logicalSection)

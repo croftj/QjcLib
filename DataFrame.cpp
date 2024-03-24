@@ -36,7 +36,7 @@
 using namespace QcjLib;
 
 DataFrame::DataFrame(QWidget *pParent) :
-   QFrame(pParent)
+   CancelableFrame(pParent)
 {
 #ifndef QT4_DESIGNER_PLUGIN
    printf("QcjLib::DataFrame::DataFrame(): Enter\n");
@@ -114,6 +114,11 @@ DataFrame::DataFrame(QWidget *pParent) :
 #endif
 }
 
+bool DataFrame::cancel()
+{
+   return(m_form->cancel());
+}
+
 void DataFrame::setDatabase()
 {
    if (m_form == nullptr)
@@ -155,10 +160,16 @@ void DataFrame::setDatabase()
 void DataFrame::connectButton(Qcj::Action act, QAbstractButton *btn)
 {
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("QcjLib::DataFrame::connectButton(): Enter\n");
-   fflush(stdout);
+   qDebug() << QString("Connecting button %1, action %2").arg(btn->text())
+                                                         .arg(act);
    switch (act) 
    {
+      case Qcj::ActivatedAction:
+         qDebug() << QString("Connecting Activated Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveActivatedAction()));
+         m_buttons[act] = btn;
+         break;
+
       case Qcj::CancelAction:
          connect(btn, SIGNAL(clicked()), this, SLOT(haveCancelAction()));
          m_buttons[act] = btn;
@@ -216,16 +227,13 @@ void DataFrame::connectButton(Qcj::Action act, QAbstractButton *btn)
 void QcjLib::DataFrame::haveActivatedAction(bool)
 {
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("QcjLib::DataFrame::haveActivatedAction(): Enter\n");
-   fflush(stdout);
-   printf("QcjLib::DataFrame::haveDownAction(): Action Enabled\n");
+   qDebug() << "Enter";
    if ( m_table != 0 ) 
    {
       m_table->activateCurrentRecord();
+      qDebug() << "Emmitting ActivatedAction";
       emit actionActivated(Qcj::ActivatedAction);
    }
-   printf("QcjLib::DataFrame::haveActivatedAction(): Exit\n");
-   fflush(stdout);
 #endif
 }
 

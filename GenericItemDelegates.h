@@ -44,12 +44,14 @@
 /****************************************************************************/
 namespace QcjLib
 {
+   QStyledItemDelegate *genericItemDelegateFactory(const QcjDataFields &field, QObject *parent = nullptr);
+
    class GenericIntDelegate : public QStyledItemDelegate
    {
       Q_OBJECT
 
    public:
-      GenericIntDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericIntDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -71,7 +73,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericDoubleDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericDoubleDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -93,7 +95,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericReadOnlyDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericReadOnlyDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -116,7 +118,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericImageDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericImageDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -138,7 +140,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericMoneyDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericMoneyDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -159,7 +161,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericStringSelectDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericStringSelectDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -180,7 +182,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericYesNoDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericYesNoDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -201,7 +203,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericPhoneDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericPhoneDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -222,7 +224,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericIntDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericIntDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -240,7 +242,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericIntDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericIntDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -258,7 +260,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericIntDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericIntDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -276,7 +278,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericIntDelegate(QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericIntDelegate(const QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -294,7 +296,7 @@ namespace QcjLib
       Q_OBJECT
 
    public:
-      GenericIntDelegate(QcjDataFields &fieldData, QcjDataFields &fieldData, QObject *parent = nullptr);
+      GenericIntDelegate(const QcjDataFields &fieldData, QcjDataFields &fieldData, QObject *parent = nullptr);
 
       virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
       virtual void setEditorData(QWidget *editor, const QModelIndex &index) const;

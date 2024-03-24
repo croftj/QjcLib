@@ -55,6 +55,7 @@
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QSqlDriver>
 #include <QSqlQuery>
 #include <QStringList>
 #include <QWidget>
@@ -134,6 +135,18 @@ AutoDataForm::AutoDataForm(QWidget *parent) : DataForm(parent),
 {
 }
 
+bool AutoDataForm::cancel()
+{
+   bool rv = DataForm::cancel();
+   if (rv)
+   {
+      rollbackTransaction();
+      clearForm();
+   }
+   return(rv);
+}
+
+
 void AutoDataForm::clearForm()
 {
    DataForm::clearForm();
@@ -177,7 +190,7 @@ void AutoDataForm::rollbackTransaction()
 void AutoDataForm::setDatabase()
 {
    QcjDataLogin login;
-   m_db = login.database(getXmldef());
+   m_db = login.database(readXmldef());
 
    qDebug() << objectName() << "pDb = " << (unsigned long)pDb << ", m_db = " << m_db;
    QGridLayout *gl = new QGridLayout(this);
@@ -186,6 +199,7 @@ void AutoDataForm::setDatabase()
 
    m_indexName = pFormDef->getIndexField(m_xmldef);
    m_tableName = pFormDef->getTable(m_xmldef);
+   qDebug() << "m_tableName = " << m_tableName;
    m_model.setTable(m_tableName);
    QSizePolicy lblPolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
    QSizePolicy wdtPolicySingle(QSizePolicy::Minimum, QSizePolicy::Maximum);
@@ -247,6 +261,38 @@ void AutoDataForm::setDatabase()
    qDebug() << "exit";
 }
 
+QVariant AutoDataForm::getFieldValue(const QString &name) const
+{
+   return(m_record.value(name));
+}
+
+void AutoDataForm::setFieldValue(const QString &name, const QVariant &value)
+{
+   m_record.setValue(name, value);
+   m_model.setRecord(0, m_record);
+}
+
+void AutoDataForm::setReadOnly(bool flag)
+{
+   QList<QWidget*> widgets = findChildren<QWidget*>();
+   qDebug() << "Enter, " << widgets.count() << "widgets";
+   foreach (QWidget *wdt, widgets)
+   {
+      qDebug() << "Widget name: " << wdt->objectName();
+      DataWidget *data_wdt = dynamic_cast<DataWidget*>(wdt);
+      if (data_wdt != nullptr)
+      {
+         qDebug() << "is data widget";
+         if (data_wdt->getFieldDef().ro != true)
+         {
+            data_wdt->setReadOnly(flag);
+         }
+      }
+      qDebug() << "Next";
+   }
+   qDebug() << "exit";
+}
+
 bool AutoDataForm::validateSave()
 {
    int btn = QMessageBox::question(this, UNSAVED_CHANGES_TITLE,
@@ -277,12 +323,39 @@ void AutoDataForm::deleteRecord()
    emit(updated());
 }
 
-void AutoDataForm::insertRecord()
+QString AutoDataForm::getIndexFilter()
+{
+   qDebug() << "enter: m_xmldef = " << m_xmldef;
+   qDebug() << "enter: m_xmldef = " << m_xmldef;
+   QString rv;
+   QStringList sl = pFormDef->getIndexField(m_xmldef).split(",");
+   foreach(QString fieldName, sl)
+   {
+      if ( rv.size() > 0 ) 
+      {
+         rv += " and ";
+      }
+      QSqlField f(fieldName, QVariant::String);
+      f.setValue(m_widgetMap.value(fieldName)->getValue());
+      rv += fieldName + " = " + m_db.driver()->formatValue(f);
+   }
+   qDebug() << "exit: rv = " << rv;
+   return(rv);
+}
+
+QVariant AutoDataForm::getIndexValue() const
+{
+   QStringList sl = pFormDef->getIndexField(m_xmldef).split(",");
+   QVariant val = m_record.value(sl.at(0));
+   return(val);
+}
+
+QSqlRecord AutoDataForm::insertRecord()
 {
    insertRecord(VariantMap());
 }
 
-void AutoDataForm::insertRecord(const VariantMap &predefined_fields)
+QSqlRecord AutoDataForm::insertRecord(const VariantMap &predefined_fields)
 {
    QString fields;
    QString bindings;
@@ -335,7 +408,7 @@ void AutoDataForm::insertRecord(const VariantMap &predefined_fields)
       }
    }
 #endif
-   sql = sql.arg(m_model.tableName())
+   sql = sql.arg(m_tableName)
             .arg(fields)
             .arg(bindings);
    qDebug() << "sql: " << sql;
@@ -351,11 +424,12 @@ void AutoDataForm::insertRecord(const VariantMap &predefined_fields)
    {
       SqlError::showError("inserting record", this);
       rollbackTransaction();
-      return;
+      return(QSqlRecord());
    }
+   QSqlRecord rec;
    if (q1.next())
    {
-      QSqlRecord rec = q1.record();
+      rec = q1.record();
       refresh(&rec, true);
       emit(updated());
    }
@@ -363,11 +437,22 @@ void AutoDataForm::insertRecord(const VariantMap &predefined_fields)
    {
       qDebug() << "No new frecord returned";
    }
+   return(rec);
 }
 
 QString AutoDataForm::makeFilter()
 {
    return(pFormDef->getWhereClause(m_xmldef, &m_record, &m_db));
+}
+
+QSqlRecord* AutoDataForm::record()
+{
+   return(&m_record);
+}
+
+void AutoDataForm::refresh()
+{
+   recordToForm(m_record);
 }
 
 void AutoDataForm::refresh(QSqlRecord *record)
@@ -429,37 +514,44 @@ void AutoDataForm::updateRecord()
    QString filter = pFormDef->getWhereClause(m_xmldef, &m_record, &m_db);
    QSqlRecord record = formToRecord(m_model.record());
 
+
    qDebug() << "Have filter: " << filter;
-   QString sql(UPDATE_SQL);
-   foreach (const DataWidget *data_wdt, modifiedFields())
+
+   QList<DataWidget*> field_list = modifiedFields();
+   if (field_list.count() > 0)
    {
-      QString field_name = data_wdt->getFieldName();
-      if (fields.length() > 0)
+      QString sql(UPDATE_SQL);
+      foreach (const DataWidget *data_wdt, modifiedFields())
       {
-         fields += ", ";
+         QString field_name = data_wdt->getFieldName();
+         if (fields.length() > 0)
+         {
+            fields += ", ";
+         }
+         fields += field_name + " = :" + field_name;
       }
-      fields += field_name + " = :" + field_name;
+      sql = sql.arg(m_model.tableName())
+               .arg(fields)
+               .arg(filter);
+      qDebug() << "sql: " << sql;
+      QSqlQuery q1;
+      q1.prepare(sql);
+      foreach (const DataWidget *data_wdt, modifiedFields())
+      {
+         QString field_name = data_wdt->getFieldName();
+         QVariant field_value = data_wdt->getValue();
+   //      qDebug() << "Binding " << data_wdt->getValue().toString() << QString(" to :%1").arg(field_name);
+         q1.bindValue(QString(":%1").arg(field_name), data_wdt->getValue());
+      }
+      if ( ! q1.exec())
+      {
+         SqlError::showError("updating record", this);
+         rollbackTransaction();
+         return;
+      }
+      emit(updated());
    }
-   sql = sql.arg(m_model.tableName())
-            .arg(fields)
-            .arg(filter);
-   qDebug() << "sql: " << sql;
-   QSqlQuery q1;
-   q1.prepare(sql);
-   foreach (const DataWidget *data_wdt, modifiedFields())
-   {
-      QString field_name = data_wdt->getFieldName();
-      QVariant field_value = data_wdt->getValue();
-//      qDebug() << "Binding " << data_wdt->getValue().toString() << QString(" to :%1").arg(field_name);
-      q1.bindValue(QString(":%1").arg(field_name), data_wdt->getValue());
-   }
-   if ( ! q1.exec())
-   {
-      SqlError::showError("updating record", this);
-      rollbackTransaction();
-      return;
-   }
-   emit(updated());
+   qDebug() << "Exit";
 }
 
 /*!
@@ -469,8 +561,29 @@ void AutoDataForm::updateRecord()
    of DataWidget and has functionality to Readily access
    the data in the widgetes as QSqlRecord objects.
 */
-DataForm::DataForm(QWidget *parent) : QFrame(parent)
+DataForm::DataForm(QWidget *parent) : CancelableFrame(parent)
 {
+   qDebug() << "Enter";
+}
+
+bool DataForm::cancel()
+{
+   if (hasChanges())
+   {
+      QMessageBox::StandardButton btn;
+      btn = QMessageBox::question(this, "Warning, this screen has change",
+         "This screen has changes! If you continue,those changes will be lost " 
+         "To keep the changes, press Cancel, to abandon them press Ok",
+         QMessageBox::StandardButton::Ok | QMessageBox::StandardButton::Cancel);
+      if (btn == QMessageBox::StandardButton::Ok)
+      {
+         return(true);
+      }
+      else
+      {
+         return(false);
+      }
+   }
 }
 
 bool DataForm::hasChanges() const
@@ -488,6 +601,7 @@ bool DataForm::hasChanges() const
          if (data_wdt->hasChanges())
          {
             qDebug() << objectName() << ": field" << data_wdt->getFieldName() << " changed";
+            data_wdt->setFocus(Qt::OtherFocusReason);
             return(true);
          }
       }
@@ -519,9 +633,11 @@ QList<DataWidget*> DataForm::modifiedFields()
 
 void DataForm::setDatabase()
 {
+   qDebug() << "Enter";
    QList<QWidget*> widgets = findChildren<QWidget*>();
    foreach (QWidget *wdt, widgets)
    {
+      qDebug() << "widget: " << wdt->objectName();
       DataWidget *data_wdt = dynamic_cast<DataWidget*>(wdt);
       if (data_wdt != nullptr && ! data_wdt->getFieldName().isEmpty())
       {
@@ -777,6 +893,11 @@ void CheckBox::initialize(const QString &xmldef)
    }
 }
 
+void CheckBox::setReadOnly(bool flag)
+{
+   QCheckBox::setEnabled(flag);
+}
+
 QVariant CheckBox::getValue() const
 {
    return(QVariant(getText()));
@@ -836,6 +957,11 @@ void DateEntry::initialize(const QString &xmldef)
    {
       setFocusPolicy(Qt::NoFocus);
    }
+}
+
+void DateEntry::setReadOnly(bool flag)
+{
+   QDateEdit::setEnabled(flag);
 }
 
 QVariant DateEntry::getValue() const
@@ -921,6 +1047,11 @@ void DoubleSpinBox::initialize(const QString &xmldef)
    }
 }
 
+void DoubleSpinBox::setReadOnly(bool flag)
+{
+   QDoubleSpinBox::setEnabled(flag);
+}
+
 QVariant DoubleSpinBox::getValue() const
 {
    return(QVariant(value()));
@@ -986,6 +1117,11 @@ void MoneyEdit::formatText()
    qDebug() << "Enter: text =" << txt;
    QLineEdit::setText(formatCurrency(txt));
    qDebug() << "exit";
+}
+
+void MoneyEdit::setReadOnly(bool flag)
+{
+   QLineEdit::setReadOnly(flag);
 }
 
 QVariant MoneyEdit::getValue() const
@@ -1083,6 +1219,11 @@ void PhoneEdit::initialize(const QString &xmldef)
       setFocusPolicy(Qt::NoFocus);
    }
 }  
+
+void PhoneEdit::setReadOnly(bool flag)
+{
+   QLineEdit::setReadOnly(flag);
+}
 
 QVariant PhoneEdit::getValue() const
 {
@@ -1211,6 +1352,10 @@ QVariant PhotoEntry::getValue()  const
    return(QVariant(m_ba));
 }
 
+void PhotoEntry::setReadOnly(bool flag)
+{
+}
+
 void PhotoEntry::setValue(const QVariant &value)
 {
    m_setValue = value;
@@ -1296,6 +1441,11 @@ void SpinBox::initialize(const QString &xmldef)
    }
 }
 
+void SpinBox::setReadOnly(bool flag)
+{
+   QSpinBox::setEnabled(flag);
+}
+
 QVariant SpinBox::getValue() const
 {
    return(QVariant(value()));
@@ -1379,6 +1529,11 @@ void StringSelect::initialize(const QString &xmldef)
    }
 }
 
+void StringSelect::setReadOnly(bool flag)
+{
+   QComboBox::setEnabled(flag);
+}
+
 QVariant StringSelect::getValue() const
 {
    return(QVariant(currentText()));
@@ -1449,6 +1604,11 @@ void TextBlockEdit::initialize(const QString &xmldef)
    qDebug() << "exit";
 }
 
+void TextBlockEdit::setReadOnly(bool flag)
+{
+   QTextEdit::setReadOnly(flag);
+}
+
 QVariant TextBlockEdit::getValue() const
 {
    return(QVariant(text()));
@@ -1504,6 +1664,11 @@ void TextLineEdit::initialize(const QString &xmldef)
    }
 }
 
+void TextLineEdit::setReadOnly(bool flag)
+{
+   QLineEdit::setReadOnly(flag);
+}
+
 QVariant TextLineEdit::getValue() const
 {
    return(QVariant(text()));
@@ -1555,6 +1720,11 @@ void TimeEntry::initialize(const QString &xmldef)
    }
 }
 
+void TimeEntry::setReadOnly(bool flag)
+{
+   QTimeEdit::setEnabled(flag);
+}
+
 QVariant TimeEntry::getValue() const
 {
    return(time());
@@ -1589,6 +1759,11 @@ void TimestampEntry::initialize(const QString &xmldef)
    {
       setFocusPolicy(Qt::NoFocus);
    }
+}
+
+void TimestampEntry::setReadOnly(bool flag)
+{
+   QDateTimeEdit::setEnabled(flag);
 }
 
 QVariant TimestampEntry::getValue() const
@@ -1660,6 +1835,11 @@ void TrueFalseSelect::initialize(const QString &xmldef)
    {
       setFocusPolicy(Qt::NoFocus);
    }
+}
+
+void TrueFalseSelect::setReadOnly(bool flag)
+{
+   QComboBox::setEnabled(flag);
 }
 
 QVariant TrueFalseSelect::getValue() const
@@ -1745,6 +1925,11 @@ void YesNoSelect::initialize(const QString &xmldef)
    {
       setFocusPolicy(Qt::NoFocus);
    }
+}
+
+void YesNoSelect::setReadOnly(bool flag)
+{
+   QComboBox::setEnabled(flag);
 }
 
 QVariant YesNoSelect::getValue() const

@@ -51,9 +51,9 @@ QcjLib::ButtonBoxFrame::ButtonBoxFrame(QWidget *parent) : QFrame(parent)
 {
 }   
 
-void QcjLib::ButtonBoxFrame::setDatabase(const QString &item)
+void QcjLib::ButtonBoxFrame::setDatabase(const QStringList &items)
 {
-   qDebug() << "Enter: item = " << item;
+   qDebug() << "Enter: items = " << items;
    if (pDb == nullptr)
    {
       qDebug() << "Have no database";
@@ -89,9 +89,17 @@ void QcjLib::ButtonBoxFrame::setDatabase(const QString &item)
    if (field_defs.size() > 1)
    {
       QString fn = drv->escapeIdentifier(field_defs[1].dataName, QSqlDriver::FieldName);
-      QString fv = item;
-      fv.remove("'");
-      model.setFilter(QString(fn + "='" + fv + "'"));
+      QString fv;
+      foreach (QString val, items)
+      {
+         val.remove("'");
+         if (fv.length() > 0)
+         {
+            fv += ", ";
+         }
+         fv += QString("'%1'").arg(val);
+      }
+      model.setFilter(QString("%1 in (%2)").arg(fn).arg(fv));
       qDebug() << "filter = " << model.filter();
    }
    model.select();
@@ -105,48 +113,51 @@ void QcjLib::ButtonBoxFrame::setDatabase(const QString &item)
    /**********************************************************/
    int rows = model.rowCount();
    qDebug() << "rows:" << rows;
-   int cols;
-   if ((rows % MINCOL == 0) || (rows % MINCOL1 == 0)  || ((rows % MINCOL) >= (rows % MINCOL1)))
+   if (rows > 0)
    {
-      cols = MINCOL;
-   }
-   else
-   {
-      cols = MINCOL1;
-   }
-
-   QGridLayout *grid = new QGridLayout(this);
-   int row = 0;
-   int col = 0;
-   QAbstractButton *btn = nullptr;
-   for (int recidx = 0; recidx < rows; recidx++)
-   {
-      QSqlRecord rec = model.record(recidx);
-      QString btn_text = rec.value(field_defs[0].dataName).toString();
-      if (field_defs[0].fieldType.contains("radio"))
+      int cols;
+      if ((rows % MINCOL == 0) || (rows % MINCOL1 == 0)  || ((rows % MINCOL) >= (rows % MINCOL1)))
       {
-         btn = new QRadioButton(btn_text, this);
+         cols = MINCOL;
       }
       else
       {
-         qDebug() << "Creating LinkedCheckBox, text = " 
-                  << btn_text;
-#if 0
-         btn = new QCheckBox(btn_text, this);
-#else
-        btn = new LinkedCheckBox(btn_text,
-                                  dynamic_cast<LinkedCheckBox*>(btn), this);
-        connect(btn, SIGNAL(lastButton()), this, SLOT(focusNext()));
-#endif
+         cols = MINCOL1;
       }
-      grid->addWidget(btn, row, col);
-      qDebug() << "cols= " << cols << "col = " << col;
 
-      if (++col >= cols)
+      cols = 2;
+      QGridLayout *grid = new QGridLayout(this);
+      int row = 0;
+      int col = 0;
+      QAbstractButton *btn = nullptr;
+      for (int recidx = 0; recidx < rows; recidx++)
       {
-         row++;
-         col = 0;
+         QSqlRecord rec = model.record(recidx);
+         QString btn_text = rec.value(field_defs[0].dataName).toString();
+         if (field_defs[0].fieldType.contains("radio"))
+         {
+            btn = new QRadioButton(btn_text, this);
+         }
+         else
+         {
+            qDebug() << "Creating LinkedCheckBox, text = " << btn_text;
+            btn = new LinkedCheckBox(btn_text,
+                                    dynamic_cast<LinkedCheckBox*>(btn), this);
+            connect(btn, SIGNAL(lastButton()), this, SLOT(focusNext()));
+         }
+         grid->addWidget(btn, row, col);
+         qDebug() << "row= " << row << ", col = " << col;
+
+         if (++col >= cols)
+         {
+            row++;
+            col = 0;
+         }
       }
+   }
+   else
+   {
+      hide();
    }
 }
 

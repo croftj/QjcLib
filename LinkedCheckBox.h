@@ -48,6 +48,9 @@ namespace QcjLib
    protected:
       virtual void focusOutEvent(QFocusEvent *evt);
 
+   protected slots:
+      void haveClicked();
+
    private:
       LinkedCheckBox *m_prev;
       LinkedCheckBox *m_next;

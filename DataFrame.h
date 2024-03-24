@@ -30,6 +30,7 @@
 
 # include <QAction>
 # include <QFrame>
+# include "CancelableFrame.h"
 # include "DataWidgets.h"
 # include "../QcjData/Qcj.h"
 # include "../QcjData/QcjDataTable.h"
@@ -38,12 +39,14 @@
 
 namespace QcjLib
 {
-   class DataFrame : public QFrame 
+   class DataFrame : public CancelableFrame
    {
       Q_OBJECT
 
    public:
       DataFrame(QWidget *pParent = 0);
+
+      bool cancel();
 
       void setDataForm(AutoDataForm *form) 
       {
@@ -113,7 +116,7 @@ namespace QcjLib
       void setState(Qcj::FrameState newState);
 
    protected slots:
-      void haveActivatedAction(bool);
+      virtual void haveActivatedAction(bool = false);
       virtual void haveCancelAction(bool = false);
       virtual void haveClearAction(bool = false);
       virtual void haveDelAction(bool = false);
