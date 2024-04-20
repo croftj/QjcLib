@@ -61,7 +61,7 @@ namespace QcjLib
       {
          setTabKeyNavigation(false);
          connect(horizontalHeader(), SIGNAL(sectionClicked(int)), 
-                 this, SLOT(SlotSectionClicked(int)));
+                 this, SLOT(SlotSectionClicked(int)), Qt::UniqueConnection);
          setSortingEnabled(true);
          m_sortColumn = -1;
       }

@@ -87,7 +87,7 @@ namespace WidgetUtils
       if ( isA(wdt, "QTextEdit") || isA(wdt, "QcjTextBlockEdit") ) 
       {
          qDebug() << "TextEdit: " << val.toString();
- static_cast<QcjTextBlockEdit*>(wdt)->setText(val.toString());
+         static_cast<QcjTextBlockEdit*>(wdt)->setText(val.toString());
       }
       else if ( isA(wdt, "QLineEdit") ) 
       {
@@ -315,6 +315,7 @@ namespace WidgetUtils
                << "stepvalue: "     << field_def.stepValue << "\n"
                << "decimals: "      << field_def.decimals << "\n"
                << "suffix: "        << field_def.suffix << "\n"
+               << "visible: "        << field_def.visible << "\n"
                << "focuswidget: "   << field_def.focusWidget << "\n";
    }
 };

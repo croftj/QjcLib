@@ -29,11 +29,31 @@
 
 namespace SqlError
 {
-   void showError(QString operation, QWidget *parent)
+   void showError(QString operation, const QSqlQueryModel &model, QWidget *parent)
    {
       QString err("Error %1: %2");
-      err = err.arg(operation).arg(pDb->lastError().text());
+      err = err.arg(operation).arg(model.lastError().text());
       qWarning() << "Database" << err;
+      qWarning() << "Executed query" << model.query().executedQuery();
+      qWarning() << "Bound values" << model.query().boundValues();
+      QMessageBox::critical(parent, "Database Error", err);
+   }
+
+   void showError(QString operation, const QSqlTableModel &model, QWidget *parent)
+   {
+      QString err("Error %1: %2");
+      err = err.arg(operation).arg(model.lastError().text());
+      qWarning() << "Database" << err;
+      QMessageBox::critical(parent, "Database Error", err);
+   }
+
+   void showError(QString operation, const QSqlQuery &query, QWidget *parent)
+   {
+      QString err("Error %1: %2");
+      err = err.arg(operation).arg(query.lastError().text());
+      qWarning() << "Database" << err;
+      qWarning() << "Executed query" << query.executedQuery();
+      qWarning() << "Bound values" << query.boundValues();
       QMessageBox::critical(parent, "Database Error", err);
    }
 }

@@ -42,25 +42,28 @@
 #include <qsqldatabase.h>
 //#include <q3sqleditorfactory.h>
 //#include <q3sqlform.h>
-#include <qsqlrecord.h>
-#include <qstring.h>
-#include <qtextedit.h>
+#include <QCheckBox>
+#include <QDateEdit>
 #include <QDebug>
+#include <QDoubleSpinBox>
 #include <QHash>
 #include <QLabel>
 #include <QLineEdit>
-#include <QWidget>
-#include <QCheckBox>
-#include <QDateEdit>
+#include <QPair>
 #include <QSpinBox>
 #include <QSqlTableModel>
+#include <QString>
 #include <QTextEdit>
-#include <QDoubleSpinBox>
+#include <QVariant>
+#include <QWidget>
+
 #include <stdlib.h>
 #include <stdio.h>
 
 namespace QcjLib
 {
+   typedef QPair<QString, VariantMap> SqlStatement;
+
    class AutoDataForm;
    class DataForm;
    class DataWidget;
@@ -105,7 +108,9 @@ namespace QcjLib
       void clearForm();
       QSqlRecord formToRecord(const QSqlRecord &record) const;
       void recordToForm(const QSqlRecord &record);
+      bool hasField(const QString &data_name) const;
       bool hasChanges() const;
+      DataWidget *fieldWidget(const QString &data_name);
       QList<DataWidget*> modifiedFields();
 
    protected:
@@ -183,6 +188,7 @@ namespace QcjLib
       virtual void      setFocus(Qt::FocusReason reason) = 0;
 
       QVariant          defaultValue() const;
+
       static DataWidget *widgetFactory(const QcjDataFieldDef &field_def,
                                        const QString &xmldef,
                                        QWidget *parent);
@@ -425,6 +431,7 @@ namespace QcjLib
    {
       Q_OBJECT
       Q_PROPERTY( QString field_name WRITE setFieldName READ getFieldName );
+      Q_PROPERTY( QString thumb_name WRITE setThumbName READ getThumbName );
       Q_PROPERTY( QVariant value WRITE setValue READ getValue );
       Q_PROPERTY( QString xml_definition WRITE setXmldef READ readXmldef );
 
@@ -434,7 +441,18 @@ namespace QcjLib
          qDebug().noquote() << objectName(); // << "::" << getFieldName();
       };
 
+      void setThumbName(const QString &name)
+      {
+         m_thumbName = name;
+         qDebug() << "m_thumbName = " << m_thumbName;
+      };
 
+      QString getThumbName() const
+      {
+         return(m_thumbName);
+      };
+
+      QVariant getScaledValue() const;
       QVariant getValue() const;
       void setValue(const QVariant &value);
       void initialize(const QString &xmldef);
@@ -445,6 +463,7 @@ namespace QcjLib
       QString text() const;
       void    setSizePolicy(QSizePolicy policy) { widget()->setSizePolicy(policy); };
       void setDefault();
+      void setWidth(int width);
       QWidget*  widget() { return(this); }
 
    signals:
@@ -458,8 +477,10 @@ namespace QcjLib
 
    private:
       QByteArray  m_ba;
+      QByteArray  m_scaledImage;
       int         m_height;
       int         m_width;
+      QString     m_thumbName;
       void setFocus(Qt::FocusReason reason) {QWidget::setFocus(reason); }
    };
 #endif

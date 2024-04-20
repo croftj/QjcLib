@@ -47,6 +47,7 @@ namespace QcjLib
       ~CameraCaptureDialog();
 
       QByteArray getImage(const QByteArray &format, int compression = 1);
+      QByteArray getThumbnail(const QByteArray &format, int compression = 1, int width = 200);
       bool hasImage() { return(m_hasImage); };
 //      void capture() {};
 
@@ -66,6 +67,7 @@ namespace QcjLib
       bool                 m_hasImage;
       QCamera*             m_camera;
       QImage               m_image;
+      QImage               m_thumbnail;
       QCameraImageCapture* m_imageCapture;
       Ui::CameraCaptureDialog m_ui;
    };

@@ -34,7 +34,7 @@ QcjLib::LinkedCheckBox::LinkedCheckBox(const QString &text, QcjLib::LinkedCheckB
    m_next(nullptr)
 {
    qDebug() << "New check box: " << text;
-   connect(this, SIGNAL(clicked(bool)), this, SLOT(haveClicked()));
+   connect(this, SIGNAL(clicked(bool)), this, SLOT(haveClicked()), Qt::UniqueConnection);
    show();
 }
 

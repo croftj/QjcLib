@@ -57,15 +57,15 @@ CameraCaptureDialog::CameraCaptureDialog(QWidget *parent) :
    m_camera->start();
    qDebug() << "Connecting signals";
    m_ui.keepBtn->setEnabled(false);
-   connect(this, &QDialog::accepted, this, &CameraCaptureDialog::closeDialog);
-   connect(this, &QDialog::rejected, this, &CameraCaptureDialog::closeDialog);
-   connect(m_ui.keepBtn, &QPushButton::clicked, this, &QDialog::accept);
-   connect(m_ui.cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
-   connect(m_ui.cameraSelect, SIGNAL(currentIndexChanged(int)), this, SLOT(selectionChanged()));
-   connect(m_ui.captureImageBtn, SIGNAL(clicked()), this, SLOT(captureImage()));
-   connect(m_ui.captureImageBtn, SIGNAL(pressed()), this, SLOT(focusImage()));
-   connect(m_imageCapture, &QCameraImageCapture::imageCaptured, this, &CameraCaptureDialog::processCapturedImage);
-   connect(m_imageCapture, &QCameraImageCapture::readyForCaptureChanged, this, &CameraCaptureDialog::readyForCapture);
+   connect(this, &QDialog::accepted, this, &CameraCaptureDialog::closeDialog, Qt::UniqueConnection);
+   connect(this, &QDialog::rejected, this, &CameraCaptureDialog::closeDialog, Qt::UniqueConnection);
+   connect(m_ui.keepBtn, &QPushButton::clicked, this, &QDialog::accept, Qt::UniqueConnection);
+   connect(m_ui.cancelBtn, &QPushButton::clicked, this, &QDialog::reject, Qt::UniqueConnection);
+   connect(m_ui.cameraSelect, SIGNAL(currentIndexChanged(int)), this, SLOT(selectionChanged()), Qt::UniqueConnection);
+   connect(m_ui.captureImageBtn, SIGNAL(clicked()), this, SLOT(captureImage()), Qt::UniqueConnection);
+   connect(m_ui.captureImageBtn, SIGNAL(pressed()), this, SLOT(focusImage()), Qt::UniqueConnection);
+   connect(m_imageCapture, &QCameraImageCapture::imageCaptured, this, &CameraCaptureDialog::processCapturedImage, Qt::UniqueConnection);
+   connect(m_imageCapture, &QCameraImageCapture::readyForCaptureChanged, this, &CameraCaptureDialog::readyForCapture, Qt::UniqueConnection);
 }
 
 CameraCaptureDialog::~CameraCaptureDialog()
@@ -110,6 +110,15 @@ QByteArray CameraCaptureDialog::getImage(const QByteArray &format, int compressi
    QImageWriter img_writer(&rv, format);
    img_writer.setCompression(compression);
    img_writer.write(m_image);
+   return(rv.buffer());
+}
+
+QByteArray CameraCaptureDialog::getThumbnail(const QByteArray &format, int compression, int width)
+{
+   QBuffer rv;
+   QImageWriter img_writer(&rv, format);
+   img_writer.setCompression(compression);
+   img_writer.write(m_image.scaledToWidth(width));
    return(rv.buffer());
 }
 

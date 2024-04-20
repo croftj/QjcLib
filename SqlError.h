@@ -31,11 +31,16 @@
 #include <QDebug>
 #include <QMessageBox>
 #include <QSqlError>
+#include <QSqlQuery>
+#include <QSqlQueryModel>
+#include <QSqlTableModel>
 
 #include "../QcjData/QcjDataStatics.h"
 namespace SqlError
 {
-   void showError(QString operation, QWidget *parent = nullptr);
+   void showError(QString operation, const QSqlQueryModel &model, QWidget *parent);
+   void showError(QString operation, const QSqlTableModel &model, QWidget *parent);
+   void showError(QString operation, const QSqlQuery &query, QWidget *parent);
 }
 
 #endif

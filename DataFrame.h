@@ -54,7 +54,7 @@ namespace QcjLib
          m_form = form;
          if ( m_form != 0 ) 
          {
-            connect(m_form, SIGNAL(updated()), this, SLOT(haveUpdated()));
+            connect(m_form, SIGNAL(updated()), this, SLOT(haveUpdated()), Qt::UniqueConnection);
          }
          printf("DataFrame::setDataForm(): Exit\n");
       };
@@ -66,10 +66,10 @@ namespace QcjLib
          if ( m_table != 0 ) 
          {
             m_table->setFocusPolicy(Qt::NoFocus);
-            connect(m_table, SIGNAL(rowSelected(QSqlRecord*)), this, SLOT(haveRowSelected(QSqlRecord*)));
-            connect(m_table, SIGNAL(rowActivated(QSqlRecord*)), this, SLOT(haveRowActivated(QSqlRecord*)));
+            connect(m_table, SIGNAL(rowSelected(QSqlRecord*)), this, SLOT(haveRowSelected(QSqlRecord*)), Qt::UniqueConnection);
+            connect(m_table, SIGNAL(rowActivated(QSqlRecord*)), this, SLOT(haveRowActivated(QSqlRecord*)), Qt::UniqueConnection);
             if ( m_form != 0 ) 
-               connect(m_table, SIGNAL(emptyTable()), m_form, SLOT(clearForm()));
+               connect(m_table, SIGNAL(emptyTable()), m_form, SLOT(clearForm()), Qt::UniqueConnection);
          }
          printf("DataFrame::setDataTable(): Exit\n");
       };

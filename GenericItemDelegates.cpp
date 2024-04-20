@@ -90,7 +90,7 @@ QWidget *GenericIntDelegate::createEditor(QWidget *parent, const QStyleOptionVie
    editor->setSingleStep(templ->singleStep());
    editor->setPrefix(templ->prefix());
    editor->setSuffix(templ->suffix());
-   connect(editor, SIGNAL(editingFinished()), this, SLOT(commitCloseEditor()));
+   connect(editor, SIGNAL(editingFinished()), this, SLOT(commitCloseEditor()), Qt::UniqueConnection);
    return(editor);
 }
 
@@ -135,7 +135,7 @@ QWidget *GenericDoubleDelegate::createEditor(QWidget *parent, const QStyleOption
    editor->setPrefix(templ->prefix());
    editor->setSingleStep(templ->singleStep());
    editor->setSuffix(templ->suffix());
-   connect(editor, SIGNAL(editingFinished()), this, SLOT(closeCommitEditor()));
+   connect(editor, SIGNAL(editingFinished()), this, SLOT(closeCommitEditor()), Qt::UniqueConnection);
    return(editor);
 }
 
@@ -173,7 +173,7 @@ QWidget *GenericReadOnlyDelegate::createEditor(QWidget *parent, const QStyleOpti
 {
    QLabel *editor = new QLabel(parent);
    qDebug(*log(LOG, 1)) << "editor =" << (unsigned long)editor;
-   connect(editor, SIGNAL(editingFinished()), this, SLOT(closeCommitEditor()));
+   connect(editor, SIGNAL(editingFinished()), this, SLOT(closeCommitEditor()), Qt::UniqueConnection);
    return(editor);
 }
 
@@ -208,7 +208,7 @@ GenericMoneyDelegate::GenericMoneyDelegate(const QcjDataFields &fieldData, QObje
 QWidget *GenericMoneyDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const
 {
    QcjMoneyEdit *editor = new QcjMoneyEdit(parent);
-   connect(editor, SIGNAL(textEdited(QString&)), this, SLOT(commitCloseEditor()));
+   connect(editor, SIGNAL(textEdited(QString&)), this, SLOT(commitCloseEditor()), Qt::UniqueConnection);
    return(editor);
 }
 
@@ -252,7 +252,7 @@ QWidget *GenericStringSelectDelegate::createEditor(QWidget *parent, const QStyle
       editor->addItem(templ->itemText(idx), templ->itemData(idx));
    }
    editor->setEditable(templ->isEditable());
-   connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()));
+   connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()), Qt::UniqueConnection);
    return(editor);
 }
 
@@ -291,7 +291,7 @@ QWidget *GenericYesNoDelegate::createEditor(QWidget *parent, const QStyleOptionV
    QcjYesNoSelect *editor = new QcjYesNoSelect(parent);
    editor->setText(index.model()->data(index, Qt::EditRole).toString());
    editor->setEditable(templ->isEditable());
-   connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()));
+   connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()), Qt::UniqueConnection);
    return(editor);
 }
 
@@ -326,7 +326,7 @@ GenericPhoneDelegate::GenericPhoneDelegate(const QcjDataFields &fieldData, QObje
 QWidget *GenericPhoneDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const
 {
    QcjPhoneEdit *editor = new QcjPhoneEdit(parent);
-   connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()));
+   connect(editor, SIGNAL(currentIndexChanged(int)), this, SLOT(commitCloseEditor()), Qt::UniqueConnection);
    return(editor);
 }
 

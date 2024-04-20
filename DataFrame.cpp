@@ -44,61 +44,61 @@ DataFrame::DataFrame(QWidget *pParent) :
    m_activatedAction = new QAction(this);
    m_activatedAction->setShortcut(Qt::Key_Return);
    m_activatedAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_activatedAction, SIGNAL(triggered(bool)), this, SLOT(haveActivatedAction(bool)));
+   connect(m_activatedAction, SIGNAL(triggered(bool)), this, SLOT(haveActivatedAction(bool)), Qt::UniqueConnection);
    addAction(m_activatedAction);
 
    m_cancelAction = new QAction(this);
    m_cancelAction->setShortcut(Qt::CTRL + Qt::Key_Escape);
    m_cancelAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_cancelAction, SIGNAL(triggered(bool)), this, SLOT(haveCancelAction(bool)));
+   connect(m_cancelAction, SIGNAL(triggered(bool)), this, SLOT(haveCancelAction(bool)), Qt::UniqueConnection);
    addAction(m_cancelAction);
 
    m_clearAction = new QAction(this);
    m_clearAction->setShortcut(Qt::Key_F10);
    m_clearAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_clearAction, SIGNAL(triggered(bool)), this, SLOT(haveClearAction(bool)));
+   connect(m_clearAction, SIGNAL(triggered(bool)), this, SLOT(haveClearAction(bool)), Qt::UniqueConnection);
    addAction(m_clearAction);
 
    m_delAction = new QAction(this);
    m_delAction->setShortcut(QKeySequence::DeleteEndOfWord);
    m_delAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_delAction, SIGNAL(triggered(bool)), this, SLOT(haveDelAction(bool)));
+   connect(m_delAction, SIGNAL(triggered(bool)), this, SLOT(haveDelAction(bool)), Qt::UniqueConnection);
    addAction(m_delAction);
 
    m_downAction = new QAction(this);
    m_downAction->setShortcut(Qt::ALT + Qt::Key_Down);
    m_downAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_downAction, SIGNAL(triggered(bool)), this, SLOT(haveDownAction(bool)));
+   connect(m_downAction, SIGNAL(triggered(bool)), this, SLOT(haveDownAction(bool)), Qt::UniqueConnection);
    addAction(m_downAction);
 
    m_editAction = new QAction(this);
    m_editAction->setShortcut(QKeySequence::Open);
    m_editAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_editAction, SIGNAL(triggered(bool)), this, SLOT(haveEditAction(bool)));
+   connect(m_editAction, SIGNAL(triggered(bool)), this, SLOT(haveEditAction(bool)), Qt::UniqueConnection);
    addAction(m_editAction);
 
    m_newAction = new QAction(this);
    m_newAction->setShortcut(QKeySequence::New);
    m_newAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_newAction, SIGNAL(triggered(bool)), this, SLOT(haveNewAction(bool)));
+   connect(m_newAction, SIGNAL(triggered(bool)), this, SLOT(haveNewAction(bool)), Qt::UniqueConnection);
    addAction(m_newAction);
 
    m_saveAction = new QAction(this);
    m_saveAction->setShortcut(QKeySequence::Save);
    m_saveAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_saveAction, SIGNAL(triggered(bool)), this, SLOT(haveSaveAction(bool)));
+   connect(m_saveAction, SIGNAL(triggered(bool)), this, SLOT(haveSaveAction(bool)), Qt::UniqueConnection);
    addAction(m_saveAction);
 
    m_searchAction = new QAction(this);
    m_searchAction->setShortcut(QKeySequence::FindNext);
    m_searchAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_searchAction, SIGNAL(triggered(bool)), this, SLOT(haveSearchAction(bool)));
+   connect(m_searchAction, SIGNAL(triggered(bool)), this, SLOT(haveSearchAction(bool)), Qt::UniqueConnection);
    addAction(m_searchAction);
 
    m_upAction = new QAction(this);
    m_upAction->setShortcut(Qt::ALT + Qt::Key_Up);
    m_upAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-   connect(m_upAction, SIGNAL(triggered(bool)), this, SLOT(haveUpAction(bool)));
+   connect(m_upAction, SIGNAL(triggered(bool)), this, SLOT(haveUpAction(bool)), Qt::UniqueConnection);
    addAction(m_upAction);
 
    for (int x = 0; x < Qcj::Actions; x++) 
@@ -116,7 +116,10 @@ DataFrame::DataFrame(QWidget *pParent) :
 
 bool DataFrame::cancel()
 {
-   return(m_form->cancel());
+   if (m_form != nullptr)
+   {
+      return(m_form->cancel());
+   }
 }
 
 void DataFrame::setDatabase()
@@ -144,7 +147,7 @@ void DataFrame::setDatabase()
 
    if (m_table == nullptr || m_form == nullptr)
    {
-      QString msg(QStringLiteral("Date frame %1 is missing table or form")
+      QString msg(QStringLiteral("Data frame %1 is missing table or form")
                .arg(parent()->objectName()));
       QMessageBox::warning(NULL, "Warning", msg); 
       qDebug() << WidgetUtils::objectType(this) << " *** Error:" << msg;
@@ -153,7 +156,7 @@ void DataFrame::setDatabase()
    {
       m_form->setDatabase();
       m_table->setDatabase();
-      connect(m_table, SIGNAL(rowSelected(QSqlRecord*)), m_form, SLOT(refresh(QSqlRecord*)));
+      connect(m_table, SIGNAL(rowSelected(QSqlRecord*)), m_form, SLOT(refresh(QSqlRecord*)), Qt::UniqueConnection);
    }
 }
 
@@ -166,52 +169,61 @@ void DataFrame::connectButton(Qcj::Action act, QAbstractButton *btn)
    {
       case Qcj::ActivatedAction:
          qDebug() << QString("Connecting Activated Action");
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveActivatedAction()));
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveActivatedAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
 
       case Qcj::CancelAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveCancelAction()));
+         qDebug() << QString("Connecting Cancel Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveCancelAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
 
       case Qcj::ClearAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveClearAction()));
+         qDebug() << QString("Connecting Clear Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveClearAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
 
       case Qcj::DelAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveDelAction()));
+         qDebug() << QString("Connecting Del Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveDelAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
       
       case Qcj::DownAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveDownAction()));
+         qDebug() << QString("Connecting Down Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveDownAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
       
       case Qcj::EditAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveEditAction()));
+         qDebug() << QString("Connecting Edit Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveEditAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
       
       case Qcj::NewAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveNewAction()));
+         qDebug() << QString("Connecting New Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveNewAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
       
       case Qcj::SaveAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveSaveAction()));
+         qDebug() << QString("Connecting Save Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveSaveAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
       
       case Qcj::SearchAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveSearchAction()));
+         qDebug() << QString("Connecting Search Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveSearchAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
 
       case Qcj::UpAction:
-         connect(btn, SIGNAL(clicked()), this, SLOT(haveUpAction()));
+         qDebug() << QString("Connecting Up Action");
+         connect(btn, SIGNAL(clicked()), this, SLOT(haveUpAction()), Qt::UniqueConnection);
          m_buttons[act] = btn;
          break;
       
@@ -339,7 +351,8 @@ void DataFrame::haveNewAction(bool)
          fflush(stdout);
          if ( validate() ) 
          {
-            m_form->insertRecord();
+            QSqlRecord customer_rec = m_form->insertRecord();
+            m_form->refresh(&customer_rec);
             printf("QcjLib::DataFrame::haveNewAction(): Emitting insertRecord signal\n");
             emit insertRecord();
          }
@@ -438,14 +451,14 @@ void DataFrame::haveUpAction(bool)
 void DataFrame::setState(Qcj::FrameState newState)
 {
 #ifndef QT4_DESIGNER_PLUGIN
-   printf("QcjLib::DataFrame::setStates(): Enter, newState: %d\n", newState);
+   printf("QcjLib::DataFrame::setState(): Enter, newState: %d\n", newState);
    fflush(stdout);
    QAbstractButton *btn;
    m_state = newState;
 
    if ( (btn = m_buttons[Qcj::ClearAction]) != 0 ) 
    {
-      printf("QcjLib::DataFrame::setStates(): %s button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::ClearAction);
+      printf("QcjLib::DataFrame::setState(): %s clear button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::ClearAction);
       fflush(stdout);
       if ( m_state != Qcj::Insert ) 
          btn->setEnabled(true);
@@ -455,7 +468,7 @@ void DataFrame::setState(Qcj::FrameState newState)
 
    if ( (btn = m_buttons[Qcj::DelAction]) != 0 ) 
    {
-      printf("QcjLib::DataFrame::setStates(): %s button %d\n", ( m_state != Qcj::Search ) ? "Enabling" : "Disabling", Qcj::DelAction);
+      printf("QcjLib::DataFrame::setState(): %s del button %d\n", ( m_state != Qcj::Search ) ? "Enabling" : "Disabling", Qcj::DelAction);
       fflush(stdout);
       if ( m_state != Qcj::Search ) 
          btn->setEnabled(true);
@@ -465,7 +478,7 @@ void DataFrame::setState(Qcj::FrameState newState)
 
    if ( (btn = m_buttons[Qcj::DownAction]) != 0 ) 
    {
-      printf("QcjLib::DataFrame::setStates(): %s button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::DownAction);
+      printf("QcjLib::DataFrame::setState(): %s down button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::DownAction);
       fflush(stdout);
       if ( m_state != Qcj::Insert ) 
          btn->setEnabled(true);
@@ -475,7 +488,7 @@ void DataFrame::setState(Qcj::FrameState newState)
 
    if ( (btn = m_buttons[Qcj::NewAction]) != 0 ) 
    {
-      printf("QcjLib::DataFrame::setStates(): %s button %d\n", ( m_state != Qcj::Search ) ? "Enabling" : "Disabling", Qcj::NewAction);
+      printf("QcjLib::DataFrame::setState(): %s new button %d\n", ( m_state != Qcj::Search ) ? "Enabling" : "Disabling", Qcj::NewAction);
       fflush(stdout);
       if ( m_state != Qcj::Search ) 
          btn->setEnabled(true);
@@ -485,7 +498,7 @@ void DataFrame::setState(Qcj::FrameState newState)
 
    if ( (btn = m_buttons[Qcj::SaveAction]) != 0 ) 
    {
-      printf("QcjLib::DataFrame::setStates(): %s button %d\n", ( m_state != Qcj::Search ) ? "Enabling" : "Disabling", Qcj::SaveAction);
+      printf("QcjLib::DataFrame::setState(): %s save button %d\n", ( m_state != Qcj::Search ) ? "Enabling" : "Disabling", Qcj::SaveAction);
       fflush(stdout);
       if ( m_state != Qcj::Search ) 
          btn->setEnabled(true);
@@ -495,7 +508,7 @@ void DataFrame::setState(Qcj::FrameState newState)
 
    if ( (btn = m_buttons[Qcj::SearchAction]) != 0 ) 
    {
-      printf("QcjLib::DataFrame::setStates(): %s button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::SearchAction);
+      printf("QcjLib::DataFrame::setState(): %s search button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::SearchAction);
       fflush(stdout);
       if ( m_state != Qcj::Insert ) 
          btn->setEnabled(true);
@@ -505,7 +518,7 @@ void DataFrame::setState(Qcj::FrameState newState)
 
    if ( (btn = m_buttons[Qcj::UpAction]) != 0 ) 
    {
-      printf("QcjLib::DataFrame::setStates(): %s button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::UpAction);
+      printf("QcjLib::DataFrame::setState(): %s up button %d\n", ( m_state != Qcj::Insert ) ? "Enabling" : "Disabling", Qcj::UpAction);
       fflush(stdout);
       if ( m_state != Qcj::Insert ) 
          btn->setEnabled(true);
@@ -557,7 +570,7 @@ void DataFrame::haveUpdated()
    fflush(stdout);
 
    if ( m_table != 0 ) 
-      m_table->refresh();
+      m_table->refresh(true);
 
    setState(Qcj::Updated);
    printf("QcjLib::DataFrame::haveUpdated(): Exit\n");

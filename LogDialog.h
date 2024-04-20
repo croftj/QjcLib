@@ -50,8 +50,8 @@ namespace QcjLib
          m_ui.setupUi(this);
          m_ui.logTableWidget->Initialize();
 
-         connect(m_ui.fileCheckBox, SIGNAL(stateChanged(int)), this, SLOT(SlotSetFileEnable(int)));
-         connect(m_ui.browseBtn,    SIGNAL(clicked()),         this, SLOT(SlotBrowseFiles()));
+         connect(m_ui.fileCheckBox, SIGNAL(stateChanged(int)), this, SLOT(SlotSetFileEnable(int)), Qt::UniqueConnection);
+         connect(m_ui.browseBtn,    SIGNAL(clicked()),         this, SLOT(SlotBrowseFiles()), Qt::UniqueConnection);
 
          QSettings settings;
          m_ui.consoleCheckBox->setChecked(settings.value(LOG_CONSOLE_ENABLE, true).toBool());

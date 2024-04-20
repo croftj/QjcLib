@@ -143,7 +143,7 @@ void QcjLib::ButtonBoxFrame::setDatabase(const QStringList &items)
             qDebug() << "Creating LinkedCheckBox, text = " << btn_text;
             btn = new LinkedCheckBox(btn_text,
                                     dynamic_cast<LinkedCheckBox*>(btn), this);
-            connect(btn, SIGNAL(lastButton()), this, SLOT(focusNext()));
+            connect(btn, SIGNAL(lastButton()), this, SLOT(focusNext()), Qt::UniqueConnection);
          }
          grid->addWidget(btn, row, col);
          qDebug() << "row= " << row << ", col = " << col;

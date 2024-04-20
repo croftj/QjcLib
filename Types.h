@@ -29,13 +29,18 @@
 #define QCJ_TYPES_H
 
 #include <QHash>
+#include <QMap>
+#include <QHashIterator>
+#include <QMapIterator>
 #include <QString>
 #include <QVariant>
 
 namespace QcjLib
 {
    typedef QHash<QString, QVariant> VariantHash;
+   typedef QHashIterator<QString, QVariant> VariantHashIterator;
    typedef QMap<QString, QVariant> VariantMap;
+   typedef QMapIterator<QString, QVariant> VariantMapIterator;
 };
 
 #endif
