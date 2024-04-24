@@ -1,11 +1,7 @@
 /******************************************************************************/
 /* $Id$                              */
 /*                                                                            */
-/* Author: Joe Croft, joe@croftj.net 2023                                     */
-/*                                                                            */
-/* $Id$                              */
-/*                                                                            */
-/* Author: Joe Croft, joe@croftj.net 2023                                     */
+/* Author: Joe Croft, joe@croftj.net 2023-2024                                     */
 /*                                                                            */
 /* This is free and unencumbered software released into the public domain.    */
 /*                                                                            */
