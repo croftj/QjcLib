@@ -38,9 +38,9 @@
 #include "../QcjData/QcjDataStatics.h"
 namespace SqlError
 {
-   void showError(QString operation, const QSqlQueryModel &model, QWidget *parent);
-   void showError(QString operation, const QSqlTableModel &model, QWidget *parent);
-   void showError(QString operation, const QSqlQuery &query, QWidget *parent);
+   void showError(QString operation, const QSqlQueryModel &model, QWidget *parent = nullptr);
+   void showError(QString operation, const QSqlTableModel &model, QWidget *parent = nullptr);
+   void showError(QString operation, const QSqlQuery &query, QWidget *parent = nullptr);
 }
 
 #endif
